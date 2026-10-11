@@ -1,5 +1,22 @@
 *.apk
+*.ap_
+*.dex
+*.class
 *.zip
 *.tar.gz
+
+# Build outputs
+.gradle/
+build/
+app/build/
+
+# Local machine SDK config
+local.properties
+
+# IDE & OS
+.idea/
+*.iml
+.vscode/
 .DS_Store
 Thumbs.db
+

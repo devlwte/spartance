@@ -59,6 +59,35 @@ Built from the ground up by **@kyrnforge**, this launcher acts as a standalone r
 4. **Deploy & Play:**
    Select your preferred audio language and tap **Iniciar Spartan CE** to jump straight into the action!
 
+## 🛠️ Compilación desde el Código Fuente (Build from Source)
+
+Si deseas clonar el proyecto en otro equipo y compilar el APK tú mismo:
+
+1. **Requisitos previos:**
+   * **Java JDK 17+** (o el JDK incluido con Android Studio).
+   * **Android SDK** (API Platform 34 / Build-Tools).
+
+2. **Clonar y compilar:**
+   ```bash
+   git clone https://github.com/devlwte/spartance.git
+   cd spartance
+   ```
+   * En **Windows**:
+     ```cmd
+     gradlew.bat assembleRelease
+     ```
+   * En **Linux / macOS**:
+     ```bash
+     chmod +x gradlew
+     ./gradlew assembleRelease
+     ```
+
+3. **Ubicación del APK resultante:**
+   El paquete firmado listo para instalar se genera automáticamente en:
+   ```
+   app/build/outputs/apk/release/app-release.apk
+   ```
+
 ---
 
 ## 🔒 Legal Disclaimer
