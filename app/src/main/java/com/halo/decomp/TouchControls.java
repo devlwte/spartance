@@ -804,20 +804,35 @@ public final class TouchControls extends View implements SensorEventListener {
 
     private void circle(Canvas canvas, float x, float y, float radius, String label, boolean active, float textSize) {
         paint.setStyle(Paint.Style.FILL);
-        int baseFill = active ? 0x9983d9ff : 0x55304050;
-        int aFill = Math.max(10, (int)(((baseFill >>> 24) & 0xff) * controlsOpacity));
-        paint.setColor((aFill << 24) | (baseFill & 0x00ffffff));
+        int a = Math.max(15, (int)(255 * controlsOpacity));
+
+        // 1. Dark Xbox Button Base Disc (#2a2a2a)
+        paint.setColor(Color.argb(a, 42, 42, 42));
         canvas.drawCircle(x, y, radius, paint);
-        paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(2);
-        int baseStroke = active ? 0xffaee7ff : 0xffffffff;
-        int aStroke = Math.max(10, (int)(((baseStroke >>> 24) & 0xff) * controlsOpacity));
-        paint.setColor((aStroke << 24) | (baseStroke & 0x00ffffff));
+
+        // 2. Beveled Top Circle (#383838 / #525252 stroke)
+        float topR = radius * 0.88f;
+        float topOffsetY = radius * 0.04f;
+        paint.setColor(Color.argb(a, active ? 75 : 56, active ? 75 : 56, active ? 75 : 56));
+        canvas.drawCircle(x, y - topOffsetY, topR, paint);
+
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(Math.max(1.5f, radius * 0.06f));
+        paint.setColor(Color.argb(a, active ? 170 : 85, active ? 170 : 85, active ? 170 : 85));
+        canvas.drawCircle(x, y - topOffsetY, topR, paint);
+
+        // 3. Subtle dark outer rim
+        paint.setStrokeWidth(1.5f);
+        paint.setColor(Color.argb((int)(a * 0.8f), 26, 26, 26));
         canvas.drawCircle(x, y, radius, paint);
-        paint.setStyle(Paint.Style.FILL);
-        int aText = Math.max(10, (int)(255 * controlsOpacity));
-        paint.setColor((aText << 24) | 0x00ffffff);
-        paint.setTextAlign(Paint.Align.CENTER); paint.setTextSize(textSize);
-        canvas.drawText(label, x, y + textSize*0.36f, paint);
+
+        if (label != null && !label.isEmpty()) {
+            paint.setStyle(Paint.Style.FILL);
+            paint.setColor(Color.argb(a, 255, 255, 255));
+            paint.setTextAlign(Paint.Align.CENTER);
+            paint.setTextSize(textSize);
+            canvas.drawText(label, x, y - topOffsetY + textSize * 0.36f, paint);
+        }
     }
 
     private void drawDpad(Canvas canvas) {
@@ -847,67 +862,59 @@ public final class TouchControls extends View implements SensorEventListener {
         float y2 = cy + hw;
         float y3 = layout.y(down) + r;
 
+        if (TouchIcons.drawDpad != null) {
+            int a = Math.max(20, (int)(255 * controlsOpacity));
+            TouchIcons.drawDpad.setBounds((int)x0, (int)y0, (int)x3, (int)y3);
+            TouchIcons.drawDpad.setAlpha(a);
+            TouchIcons.drawDpad.draw(canvas);
+
+            // Subtle white highlight for active pressed direction
+            paint.setStyle(Paint.Style.FILL);
+            paint.setColor(Color.argb((int)(120 * controlsOpacity), 255, 255, 255));
+            if (held(up) || dragControl == up) canvas.drawRect(x1, y0, x2, y1, paint);
+            if (held(down) || dragControl == down) canvas.drawRect(x1, y2, x2, y3, paint);
+            if (held(left) || dragControl == left) canvas.drawRect(x0, y1, x1, y2, paint);
+            if (held(right) || dragControl == right) canvas.drawRect(x2, y1, x3, y2, paint);
+            return;
+        }
+
         Path crossPath = new Path();
-        crossPath.moveTo(x1, y0);
-        crossPath.lineTo(x2, y0);
-        crossPath.lineTo(x2, y1);
-        crossPath.lineTo(x3, y1);
-        crossPath.lineTo(x3, y2);
-        crossPath.lineTo(x2, y2);
-        crossPath.lineTo(x2, y3);
-        crossPath.lineTo(x1, y3);
-        crossPath.lineTo(x1, y2);
-        crossPath.lineTo(x0, y2);
-        crossPath.lineTo(x0, y1);
-        crossPath.lineTo(x1, y1);
+        crossPath.moveTo(x1, y0); crossPath.lineTo(x2, y0); crossPath.lineTo(x2, y1);
+        crossPath.lineTo(x3, y1); crossPath.lineTo(x3, y2); crossPath.lineTo(x2, y2);
+        crossPath.lineTo(x2, y3); crossPath.lineTo(x1, y3); crossPath.lineTo(x1, y2);
+        crossPath.lineTo(x0, y2); crossPath.lineTo(x0, y1); crossPath.lineTo(x1, y1);
         crossPath.close();
 
         paint.setStyle(Paint.Style.FILL);
-        int aFill = Math.max(8, (int)(40 * controlsOpacity));
-        paint.setColor(Color.argb(aFill, 0, 180, 255));
+        paint.setColor(Color.argb(Math.max(15, (int)(255 * controlsOpacity)), 42, 42, 42));
         canvas.drawPath(crossPath, paint);
-
-        boolean anyActive = false;
-        int aActive = Math.max(20, (int)(110 * controlsOpacity));
-        paint.setColor(Color.argb(aActive, 0, 229, 255));
-        if (held(up) || dragControl == up) {
-            canvas.drawRect(x1, y0, x2, y1, paint);
-            anyActive = true;
-        }
-        if (held(down) || dragControl == down) {
-            canvas.drawRect(x1, y2, x2, y3, paint);
-            anyActive = true;
-        }
-        if (held(left) || dragControl == left) {
-            canvas.drawRect(x0, y1, x1, y2, paint);
-            anyActive = true;
-        }
-        if (held(right) || dragControl == right) {
-            canvas.drawRect(x2, y1, x3, y2, paint);
-            anyActive = true;
-        }
-
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeWidth(2.0f);
-        int aStroke = anyActive ? Math.max(30, (int)(255 * controlsOpacity)) : Math.max(20, (int)(200 * controlsOpacity));
-        paint.setColor(Color.argb(aStroke, 188, 234, 255));
-        canvas.drawPath(crossPath, paint);
-
-        paint.setStrokeWidth(1.4f);
-        canvas.drawCircle(cx, cy, hw * 0.65f, paint);
-
-        if (layout.shown(up)) TouchIcons.draw(canvas, paint, 12, layout.x(up), layout.y(up), r * 0.72f, held(up) || dragControl == up);
-        if (layout.shown(down)) TouchIcons.draw(canvas, paint, 13, layout.x(down), layout.y(down), r * 0.72f, held(down) || dragControl == down);
-        if (layout.shown(left)) TouchIcons.draw(canvas, paint, 14, layout.x(left), layout.y(left), r * 0.72f, held(left) || dragControl == left);
-        if (layout.shown(right)) TouchIcons.draw(canvas, paint, 15, layout.x(right), layout.y(right), r * 0.72f, held(right) || dragControl == right);
     }
 
     private void stick(Canvas canvas, int axis, float x, float y, String label) {
-        circle(canvas, x, y, layout.radius(LEFT), "", false, 11*layout.sizeScale(LEFT));
-        circle(canvas, x + axes[axis]/32767f*layout.radius(LEFT), y + axes[axis+1]/32767f*layout.radius(LEFT),
-               24*layout.sizeScale(LEFT), "", held(LEFT));
-        TouchIcons.draw(canvas, paint, LEFT, x + axes[axis]/32767f*layout.radius(LEFT),
-            y + axes[axis+1]/32767f*layout.radius(LEFT), 18*layout.sizeScale(LEFT), held(LEFT));
+        float baseR = layout.radius(LEFT);
+        float capR = 24 * layout.sizeScale(LEFT);
+        float stickX = x + axes[axis]/32767f*baseR;
+        float stickY = y + axes[axis+1]/32767f*baseR;
+
+        // Base housing cup (dark recessed Xbox ring)
+        paint.setStyle(Paint.Style.FILL);
+        int a = Math.max(15, (int)(255 * controlsOpacity));
+        paint.setColor(Color.argb(a, 26, 26, 26));
+        canvas.drawCircle(x, y, baseR, paint);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(2f);
+        paint.setColor(Color.argb(a, 50, 50, 50));
+        canvas.drawCircle(x, y, baseR, paint);
+
+        // Xbox Thumbstick cap
+        if (TouchIcons.drawStick != null) {
+            int ir = Math.round(capR * 1.15f);
+            TouchIcons.drawStick.setBounds((int)(stickX - ir), (int)(stickY - ir), (int)(stickX + ir), (int)(stickY + ir));
+            TouchIcons.drawStick.setAlpha(a);
+            TouchIcons.drawStick.draw(canvas);
+        } else {
+            circle(canvas, stickX, stickY, capR, "", held(LEFT));
+        }
     }
 
     private boolean overlayVisible() {
@@ -985,12 +992,12 @@ public final class TouchControls extends View implements SensorEventListener {
                 if (type >= 12 && type <= 15) continue;
                 Button b = buttons[type];
                 boolean active = held(i) || dragControl == i;
-                if (type <= 3) {
+                if (type <= 3 || type == 10 || type == 11) {
                     float r = layout.radius(i);
                     if (active) {
                         paint.setStyle(Paint.Style.STROKE);
-                        paint.setStrokeWidth(3.5f);
-                        paint.setColor(Color.argb((int)(245 * controlsOpacity), 0, 229, 255));
+                        paint.setStrokeWidth(3.0f);
+                        paint.setColor(Color.argb((int)(245 * controlsOpacity), 255, 255, 255));
                         canvas.drawCircle(layout.x(i), layout.y(i), r + 2, paint);
                     } else if (editing) {
                         paint.setStyle(Paint.Style.STROKE);
@@ -1019,7 +1026,7 @@ public final class TouchControls extends View implements SensorEventListener {
         bolt.lineTo(cx - 1f, cy - 1f);
         bolt.close();
         paint.setStyle(Paint.Style.FILL);
-        paint.setColor(Color.argb((int)(245 * controlsOpacity), 0, 229, 255)); // Neon Cyan
+        paint.setColor(Color.argb((int)(245 * controlsOpacity), 255, 215, 0)); // Tactical Gold
         canvas.drawPath(bolt, paint);
     }
 }

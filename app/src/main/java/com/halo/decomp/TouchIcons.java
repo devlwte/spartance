@@ -9,7 +9,7 @@ import com.kyrn.spartan.R;
 
 /** Original vector pictograms with the angular, cyan Spartan HUD treatment and Xbox vector buttons. */
 final class TouchIcons {
-    private static Drawable drawA, drawB, drawX, drawY, drawCrouch;
+    static Drawable drawA, drawB, drawX, drawY, drawCrouch, drawMenu, drawView, drawStick, drawDpad;
 
     static void init(Context ctx) {
         if (drawA == null && ctx != null) {
@@ -19,6 +19,10 @@ final class TouchIcons {
                 drawX = ctx.getDrawable(R.drawable.ic_xbox_x);
                 drawY = ctx.getDrawable(R.drawable.ic_xbox_y);
                 drawCrouch = ctx.getDrawable(R.drawable.ic_crouch_bend);
+                drawMenu = ctx.getDrawable(R.drawable.ic_xbox_menu);
+                drawView = ctx.getDrawable(R.drawable.ic_xbox_view);
+                drawStick = ctx.getDrawable(R.drawable.ic_xbox_stick);
+                drawDpad = ctx.getDrawable(R.drawable.ic_xbox_dpad);
             } catch (Exception ignored) {}
         }
     }
@@ -72,11 +76,33 @@ final class TouchIcons {
             c.restore();
             return;
         }
+        if (type == 10 && drawMenu != null) {
+            c.save();
+            c.translate(x, y);
+            int r = Math.round(radius);
+            drawMenu.setBounds(-r, -r, r, r);
+            int alpha = Math.max(15, (int)((active ? 255 : 215) * opacity));
+            drawMenu.setAlpha(alpha);
+            drawMenu.draw(c);
+            c.restore();
+            return;
+        }
+        if (type == 11 && drawView != null) {
+            c.save();
+            c.translate(x, y);
+            int r = Math.round(radius);
+            drawView.setBounds(-r, -r, r, r);
+            int alpha = Math.max(15, (int)((active ? 255 : 215) * opacity));
+            drawView.setAlpha(alpha);
+            drawView.draw(c);
+            c.restore();
+            return;
+        }
 
         c.save(); c.translate(x,y); c.scale(radius/22f,radius/22f);
         p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(1.8f);
         p.setStrokeJoin(Paint.Join.MITER); p.setStrokeCap(Paint.Cap.SQUARE);
-        int base = active ? 0xffe4faff : 0xffbceaff;
+        int base = active ? 0xffffffff : 0xffeaeaea;
         int a = Math.max(10, (int)(((base >>> 24) & 0xff) * opacity));
         p.setColor((a << 24) | (base & 0x00ffffff));
         switch(type) {

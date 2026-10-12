@@ -856,20 +856,28 @@ public class HudEditorActivity extends Activity {
             float x = layout.x(TouchLayout.LEFT);
             float y = layout.y(TouchLayout.LEFT);
             float r = layout.radius(TouchLayout.LEFT);
+            float capR = 24 * layout.sizeScale(TouchLayout.LEFT);
             boolean isSelected = (selectedControl == TouchLayout.LEFT);
+            int a = Math.max(15, (int)(255 * controlsOpacity));
 
+            // Base housing cup (dark recessed Xbox ring)
+            paint.setStyle(Paint.Style.FILL);
+            paint.setColor(Color.argb(a, 26, 26, 26));
+            canvas.drawCircle(x, y, r, paint);
             paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(isSelected ? 3.0f : 1.8f);
-            int aStroke = Math.max(20, (int)(220 * controlsOpacity));
-            paint.setColor(isSelected ? Color.rgb(0, 229, 255) : Color.argb(aStroke, 188, 234, 255));
+            paint.setStrokeWidth(isSelected ? 3.0f : 2.0f);
+            paint.setColor(isSelected ? Color.rgb(0, 229, 255) : Color.argb(a, 50, 50, 50));
             canvas.drawCircle(x, y, r, paint);
 
-            paint.setStyle(Paint.Style.FILL);
-            int aFill = Math.max(10, (int)(45 * controlsOpacity));
-            paint.setColor(Color.argb(aFill, 0, 180, 255));
-            canvas.drawCircle(x, y, 24 * layout.sizeScale(TouchLayout.LEFT), paint);
-
-            TouchIcons.draw(canvas, paint, TouchLayout.LEFT, x, y, 18 * layout.sizeScale(TouchLayout.LEFT), isSelected);
+            // Xbox Thumbstick cap
+            if (TouchIcons.drawStick != null) {
+                int ir = Math.round(capR * 1.15f);
+                TouchIcons.drawStick.setBounds((int)(x - ir), (int)(y - ir), (int)(x + ir), (int)(y + ir));
+                TouchIcons.drawStick.setAlpha(a);
+                TouchIcons.drawStick.draw(canvas);
+            } else {
+                drawXboxDisc(canvas, x, y, capR, isSelected);
+            }
 
             if (isSelected) {
                 drawSelectionIndicator(canvas, x, y, r * 1.25f);
@@ -902,43 +910,24 @@ public class HudEditorActivity extends Activity {
             float y2 = cy + hw;
             float y3 = layout.y(down) + r;
 
+            if (TouchIcons.drawDpad != null) {
+                int a = Math.max(20, (int)(255 * controlsOpacity));
+                TouchIcons.drawDpad.setBounds((int)x0, (int)y0, (int)x3, (int)y3);
+                TouchIcons.drawDpad.setAlpha(a);
+                TouchIcons.drawDpad.draw(canvas);
+                return;
+            }
+
             Path crossPath = new Path();
-            crossPath.moveTo(x1, y0);
-            crossPath.lineTo(x2, y0);
-            crossPath.lineTo(x2, y1);
-            crossPath.lineTo(x3, y1);
-            crossPath.lineTo(x3, y2);
-            crossPath.lineTo(x2, y2);
-            crossPath.lineTo(x2, y3);
-            crossPath.lineTo(x1, y3);
-            crossPath.lineTo(x1, y2);
-            crossPath.lineTo(x0, y2);
-            crossPath.lineTo(x0, y1);
-            crossPath.lineTo(x1, y1);
+            crossPath.moveTo(x1, y0); crossPath.lineTo(x2, y0); crossPath.lineTo(x2, y1);
+            crossPath.lineTo(x3, y1); crossPath.lineTo(x3, y2); crossPath.lineTo(x2, y2);
+            crossPath.lineTo(x2, y3); crossPath.lineTo(x1, y3); crossPath.lineTo(x1, y2);
+            crossPath.lineTo(x0, y2); crossPath.lineTo(x0, y1); crossPath.lineTo(x1, y1);
             crossPath.close();
 
-            // Fondo translúcido
             paint.setStyle(Paint.Style.FILL);
-            int aFill = Math.max(8, (int)(40 * controlsOpacity));
-            paint.setColor(Color.argb(aFill, 0, 180, 255));
+            paint.setColor(Color.argb(Math.max(15, (int)(255 * controlsOpacity)), 42, 42, 42));
             canvas.drawPath(crossPath, paint);
-
-            // Borde contorno
-            paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(2.0f);
-            int aStroke = Math.max(20, (int)(200 * controlsOpacity));
-            paint.setColor(Color.argb(aStroke, 188, 234, 255));
-            canvas.drawPath(crossPath, paint);
-
-            // Pivote central
-            paint.setStrokeWidth(1.4f);
-            canvas.drawCircle(cx, cy, hw * 0.65f, paint);
-
-            // Flechas en cada brazo
-            if (layout.shown(up)) TouchIcons.draw(canvas, paint, 12, layout.x(up), layout.y(up), r * 0.72f, false);
-            if (layout.shown(down)) TouchIcons.draw(canvas, paint, 13, layout.x(down), layout.y(down), r * 0.72f, false);
-            if (layout.shown(left)) TouchIcons.draw(canvas, paint, 14, layout.x(left), layout.y(left), r * 0.72f, false);
-            if (layout.shown(right)) TouchIcons.draw(canvas, paint, 15, layout.x(right), layout.y(right), r * 0.72f, false);
         }
 
         private void drawDpadSelectionRing(Canvas canvas) {
@@ -958,6 +947,31 @@ public class HudEditorActivity extends Activity {
             }
         }
 
+        private void drawXboxDisc(Canvas canvas, float x, float y, float radius, boolean isSelected) {
+            paint.setStyle(Paint.Style.FILL);
+            int a = Math.max(15, (int)(255 * controlsOpacity));
+
+            // 1. Dark Xbox Button Base Disc (#2a2a2a)
+            paint.setColor(Color.argb(a, 42, 42, 42));
+            canvas.drawCircle(x, y, radius, paint);
+
+            // 2. Beveled Top Circle (#383838 / #525252 stroke)
+            float topR = radius * 0.88f;
+            float topOffsetY = radius * 0.04f;
+            paint.setColor(Color.argb(a, isSelected ? 75 : 56, isSelected ? 75 : 56, isSelected ? 75 : 56));
+            canvas.drawCircle(x, y - topOffsetY, topR, paint);
+
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(Math.max(1.5f, radius * 0.06f));
+            paint.setColor(Color.argb(a, isSelected ? 170 : 85, isSelected ? 170 : 85, isSelected ? 170 : 85));
+            canvas.drawCircle(x, y - topOffsetY, topR, paint);
+
+            // 3. Subtle dark outer rim
+            paint.setStrokeWidth(1.5f);
+            paint.setColor(Color.argb((int)(a * 0.8f), 26, 26, 26));
+            canvas.drawCircle(x, y, radius, paint);
+        }
+
         private void drawStandardButton(Canvas canvas, int index, int type, float x, float y, float radius, boolean isSelected, boolean shown) {
             if (!shown) {
                 paint.setStyle(Paint.Style.STROKE);
@@ -968,7 +982,7 @@ public class HudEditorActivity extends Activity {
                 return;
             }
 
-            if (type <= 3) {
+            if (type <= 3 || type == 10 || type == 11) {
                 if (isSelected) {
                     paint.setStyle(Paint.Style.STROKE);
                     paint.setStrokeWidth(3.0f);
@@ -983,12 +997,7 @@ public class HudEditorActivity extends Activity {
                 }
                 TouchIcons.draw(canvas, paint, type, x, y, radius, isSelected);
             } else {
-                paint.setStyle(Paint.Style.STROKE);
-                paint.setStrokeWidth(isSelected ? 3.0f : 1.8f);
-                int aStroke = isSelected ? 255 : Math.max(15, (int)(220 * controlsOpacity));
-                paint.setColor(isSelected ? Color.rgb(0, 229, 255) : Color.argb(aStroke, 188, 234, 255));
-                canvas.drawCircle(x, y, radius, paint);
-
+                drawXboxDisc(canvas, x, y, radius, isSelected);
                 TouchIcons.draw(canvas, paint, type, x, y, radius * 0.72f, isSelected);
             }
 
