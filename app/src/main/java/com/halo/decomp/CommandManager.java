@@ -37,12 +37,22 @@ public final class CommandManager {
         public final String title;
         public final String titleEn;
         public final String command;
+        public final String offCommand;
 
-        public CommandItem(String slug, String title, String titleEn, String command) {
+        public CommandItem(String slug, String title, String titleEn, String command, String offCommand) {
             this.slug = slug != null ? slug : "";
             this.title = title != null ? title : "";
             this.titleEn = titleEn != null ? titleEn : title;
             this.command = command != null ? command : "";
+            this.offCommand = offCommand != null ? offCommand : "";
+        }
+
+        public CommandItem(String slug, String title, String titleEn, String command) {
+            this(slug, title, titleEn, command, "");
+        }
+
+        public boolean isToggle() {
+            return offCommand != null && !offCommand.trim().isEmpty();
         }
 
         public String getDisplayTitle() {
@@ -52,6 +62,35 @@ public final class CommandManager {
             }
             return title.isEmpty() ? command : title;
         }
+
+        public String getCleanTitle() {
+            String t = getDisplayTitle();
+            if (isToggle()) {
+                if (t.startsWith("Activar ")) t = t.substring(8).trim();
+                else if (t.startsWith("activar ")) t = t.substring(8).trim();
+                else if (t.startsWith("Desactivar ")) t = t.substring(11).trim();
+                else if (t.startsWith("desactivar ")) t = t.substring(11).trim();
+                else if (t.startsWith("Enable ")) t = t.substring(7).trim();
+                else if (t.startsWith("enable ")) t = t.substring(7).trim();
+                else if (t.startsWith("Disable ")) t = t.substring(8).trim();
+                else if (t.startsWith("disable ")) t = t.substring(8).trim();
+            }
+            return t;
+        }
+    }
+
+    private static final String PREFS_NAME = "tactical_cheat_states";
+
+    public static boolean isCheatActive(Context context, String slug) {
+        if (slug == null || slug.isEmpty()) return false;
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getBoolean("active_" + slug, false);
+    }
+
+    public static void setCheatActive(Context context, String slug, boolean active) {
+        if (slug == null || slug.isEmpty()) return;
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit().putBoolean("active_" + slug, active).apply();
     }
 
     private static List<CommandItem> cachedList = null;
@@ -171,18 +210,61 @@ public final class CommandManager {
             if (array == null) array = obj.optJSONArray("commands");
             if (array == null) return null;
 
-            List<CommandItem> list = new ArrayList<>();
+            List<CommandItem> rawList = new ArrayList<>();
+            boolean hasExplicitOffCommand = false;
+
             for (int i = 0; i < array.length(); i++) {
                 JSONObject item = array.getJSONObject(i);
-                String slug = item.optString("slug", "");
-                String title = item.optString("title", "");
+                String slug = item.optString("slug", "").trim();
+                String title = item.optString("title", "").trim();
                 String titleEn = item.has("title_EN") ? item.optString("title_EN", title) : item.optString("title_en", title);
-                String command = item.optString("command", "");
+                String command = item.optString("command", "").trim();
+                String offCommand = item.optString("off_command", "").trim();
+                if (!offCommand.isEmpty()) {
+                    hasExplicitOffCommand = true;
+                }
                 if (!command.isEmpty()) {
-                    list.add(new CommandItem(slug, title, titleEn, command));
+                    rawList.add(new CommandItem(slug, title, titleEn, command, offCommand));
                 }
             }
-            return list;
+
+            if (hasExplicitOffCommand) {
+                return rawList;
+            }
+
+            // Legacy format fallback: automatically merge "_on" and "_off" pairs if present
+            List<CommandItem> merged = new ArrayList<>();
+            java.util.Set<String> handledSlugs = new java.util.HashSet<>();
+
+            for (CommandItem item : rawList) {
+                if (handledSlugs.contains(item.slug)) continue;
+
+                if (item.slug.endsWith("_on")) {
+                    String baseSlug = item.slug.substring(0, item.slug.length() - 3);
+                    String offSlug = baseSlug + "_off";
+                    CommandItem matchingOff = null;
+                    for (CommandItem other : rawList) {
+                        if (other.slug.equals(offSlug)) {
+                            matchingOff = other;
+                            break;
+                        }
+                    }
+                    if (matchingOff != null) {
+                        handledSlugs.add(item.slug);
+                        handledSlugs.add(matchingOff.slug);
+                        merged.add(new CommandItem(baseSlug, item.title, item.titleEn, item.command, matchingOff.command));
+                        continue;
+                    }
+                } else if (item.slug.endsWith("_off")) {
+                    String baseSlug = item.slug.substring(0, item.slug.length() - 4);
+                    if (handledSlugs.contains(baseSlug + "_on")) {
+                        continue;
+                    }
+                }
+                handledSlugs.add(item.slug);
+                merged.add(item);
+            }
+            return merged;
         } catch (Exception ignored) {
             return null;
         }
@@ -190,16 +272,23 @@ public final class CommandManager {
 
     private static List<CommandItem> getHardcodedDefaults() {
         List<CommandItem> list = new ArrayList<>();
-        list.add(new CommandItem("jump_on", "Activar Súper Salto", "Enable Super Jump", "cheat_super_jump 1"));
-        list.add(new CommandItem("jump_off", "Desactivar Súper Salto", "Disable Super Jump", "cheat_super_jump 0"));
-        list.add(new CommandItem("god_on", "Activar Modo Dios", "Enable God Mode", "cheat_deathless_player 1"));
-        list.add(new CommandItem("god_off", "Desactivar Modo Dios", "Disable God Mode", "cheat_deathless_player 0"));
-        list.add(new CommandItem("ammo_on", "Activar Munición Infinita", "Enable Infinite Ammo", "cheat_infinite_ammo 1"));
-        list.add(new CommandItem("ammo_off", "Desactivar Munición Infinita", "Disable Infinite Ammo", "cheat_infinite_ammo 0"));
-        list.add(new CommandItem("clip_on", "Activar Cargador sin Fondo", "Enable Bottomless Clip", "cheat_bottomless_clip 1"));
-        list.add(new CommandItem("clip_off", "Desactivar Cargador sin Fondo", "Disable Bottomless Clip", "cheat_bottomless_clip 0"));
+        list.add(new CommandItem("jump", "Activar Súper Salto", "Enable Super Jump", "cheat_super_jump 1", "cheat_super_jump 0"));
+        list.add(new CommandItem("god", "Activar Modo Dios", "Enable God Mode", "cheat_deathless_player 1", "cheat_deathless_player 0"));
+        list.add(new CommandItem("ammo", "Activar Munición Infinita", "Enable Infinite Ammo", "cheat_infinite_ammo 1", "cheat_infinite_ammo 0"));
+        list.add(new CommandItem("clip", "Activar Cargador sin Fondo", "Enable Bottomless Clip", "cheat_bottomless_clip 1", "cheat_bottomless_clip 0"));
+        list.add(new CommandItem("medusa", "Activar Mirada Mortal", "Enable Medusa Mode", "cheat_medusa 1", "cheat_medusa 0"));
+        list.add(new CommandItem("omnipotent", "Activar Omnipotencia", "Enable Omnipotent", "cheat_omnipotent 1", "cheat_omnipotent 0"));
+        list.add(new CommandItem("possession", "Activar Posesión por Contacto", "Enable Bump Possession", "cheat_bump_possession 1", "cheat_bump_possession 0"));
+        list.add(new CommandItem("camera", "Activar Cámara Libre", "Enable Free Camera", "camera_control 1", "camera_control 0"));
+        list.add(new CommandItem("ai_inert", "Congelar Inteligencia Artificial", "Freeze AI", "ai_inert 1", "ai_inert 0"));
+        list.add(new CommandItem("wireframe", "Activar Modo Alámbrico", "Enable Wireframe", "rasterizer_wireframe 1", "rasterizer_wireframe 0"));
+        list.add(new CommandItem("stats", "Mostrar Estadísticas de FPS", "Show FPS Stats", "set rasterizer_stats 1", "set rasterizer_stats 0"));
+        list.add(new CommandItem("fog", "Activar Niebla Atmosférica", "Enable Atmospheric Fog", "set rasterizer_fog_atmosphere 1", "set rasterizer_fog_atmosphere 0"));
+        list.add(new CommandItem("textures", "Activar Texturas Difusas", "Enable Diffuse Textures", "set rasterizer_environment_diffuse_textures 1", "set rasterizer_environment_diffuse_textures 0"));
         list.add(new CommandItem("spawn_weapons", "Generar Todas las Armas", "Spawn All Weapons", "cheat_all_weapons"));
         list.add(new CommandItem("spawn_vehicles", "Generar Todos los Vehículos", "Spawn All Vehicles", "cheat_all_vehicles"));
+        list.add(new CommandItem("spawn_powerups", "Generar Todos los Powerups", "Spawn All Powerups", "cheat_all_powerups"));
+        list.add(new CommandItem("teleport_cam", "Teletransportar Jugador a la Cámara", "Teleport Player to Camera", "cheat_teleport_to_camera"));
         return list;
     }
 }

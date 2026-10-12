@@ -222,38 +222,96 @@ public final class TacticalConsole {
 
         int count = 0;
         for (CommandManager.CommandItem item : items) {
-            String title = item.getDisplayTitle();
+            String cleanTitle = item.getCleanTitle();
             String cmd = item.command;
-            if (!filter.isEmpty() && !title.toLowerCase(Locale.ROOT).contains(lowerFilter)
-                    && !cmd.toLowerCase(Locale.ROOT).contains(lowerFilter)) {
+            String offCmd = item.offCommand;
+
+            if (!filter.isEmpty()
+                    && !cleanTitle.toLowerCase(Locale.ROOT).contains(lowerFilter)
+                    && !item.getDisplayTitle().toLowerCase(Locale.ROOT).contains(lowerFilter)
+                    && !cmd.toLowerCase(Locale.ROOT).contains(lowerFilter)
+                    && !offCmd.toLowerCase(Locale.ROOT).contains(lowerFilter)) {
                 continue;
             }
 
             count++;
-            Button btn = new Button(ctx);
-            btn.setText(title);
-            boolean isOff = item.slug.endsWith("_off");
-            btn.setTextColor(isOff ? Color.parseColor("#FF8A80") : Color.WHITE);
-            btn.setTextSize(12);
-            btn.setTypeface(Typeface.DEFAULT_BOLD);
-            btn.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
+            boolean isToggle = item.isToggle();
+            boolean isActive = isToggle && CommandManager.isCheatActive(ctx, item.slug);
 
-            GradientDrawable btnBg = new GradientDrawable();
-            btnBg.setColor(Color.parseColor(isOff ? "#1AFF5252" : "#1AFFFFFF"));
-            btnBg.setCornerRadius(dp(ctx, 8));
-            btnBg.setStroke(dp(ctx, 1), Color.parseColor(isOff ? "#33FF5252" : "#2200E5FF"));
-            btn.setBackground(btnBg);
-            btn.setPadding(dp(ctx, 14), dp(ctx, 8), dp(ctx, 14), dp(ctx, 8));
+            LinearLayout row = new LinearLayout(ctx);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setClickable(true);
+            row.setFocusable(true);
+            row.setPadding(dp(ctx, 14), dp(ctx, 10), dp(ctx, 14), dp(ctx, 10));
 
-            btn.setOnClickListener(v -> {
-                execute(ctx, title, cmd);
+            GradientDrawable rowBg = new GradientDrawable();
+            rowBg.setCornerRadius(dp(ctx, 8));
+            if (isActive) {
+                rowBg.setColor(Color.parseColor("#2600E676")); // Emerald green active glow
+                rowBg.setStroke(dp(ctx, 1.5f), Color.parseColor("#00E676"));
+            } else if (isToggle) {
+                rowBg.setColor(Color.parseColor("#14101722")); // Dark subtle translucent
+                rowBg.setStroke(dp(ctx, 1), Color.parseColor("#2B3B4C"));
+            } else {
+                rowBg.setColor(Color.parseColor("#1400E5FF")); // Instant action cyan
+                rowBg.setStroke(dp(ctx, 1), Color.parseColor("#3300E5FF"));
+            }
+            row.setBackground(rowBg);
+
+            // Left: Title
+            TextView tvTitle = new TextView(ctx);
+            tvTitle.setText(cleanTitle);
+            tvTitle.setTextColor(isActive ? Color.parseColor("#E0FFE8") : Color.WHITE);
+            tvTitle.setTextSize(12);
+            tvTitle.setTypeface(Typeface.DEFAULT_BOLD);
+            LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            row.addView(tvTitle, titleLp);
+
+            // Right: Status Badge
+            TextView tvBadge = new TextView(ctx);
+            tvBadge.setTextSize(10);
+            tvBadge.setTypeface(Typeface.DEFAULT_BOLD);
+            tvBadge.setPadding(dp(ctx, 8), dp(ctx, 3), dp(ctx, 8), dp(ctx, 3));
+            GradientDrawable badgeBg = new GradientDrawable();
+            badgeBg.setCornerRadius(dp(ctx, 4));
+
+            if (isActive) {
+                tvBadge.setText("● ACTIVO");
+                tvBadge.setTextColor(Color.parseColor("#00E676"));
+                badgeBg.setColor(Color.parseColor("#3300E676"));
+                badgeBg.setStroke(dp(ctx, 1), Color.parseColor("#00E676"));
+            } else if (isToggle) {
+                tvBadge.setText("○ DESACTIVADO");
+                tvBadge.setTextColor(Color.parseColor("#8899A6"));
+                badgeBg.setColor(Color.parseColor("#1A8899A6"));
+                badgeBg.setStroke(dp(ctx, 1), Color.parseColor("#338899A6"));
+            } else {
+                tvBadge.setText("⚡ EJECUTAR");
+                tvBadge.setTextColor(Color.parseColor("#00E5FF"));
+                badgeBg.setColor(Color.parseColor("#2200E5FF"));
+                badgeBg.setStroke(dp(ctx, 1), Color.parseColor("#4400E5FF"));
+            }
+            tvBadge.setBackground(badgeBg);
+            row.addView(tvBadge);
+
+            row.setOnClickListener(v -> {
+                if (isToggle) {
+                    boolean newState = !isActive;
+                    CommandManager.setCheatActive(ctx, item.slug, newState);
+                    String toRun = newState ? item.command : item.offCommand;
+                    String feedback = cleanTitle + (newState ? ": ACTIVADO" : ": DESACTIVADO");
+                    execute(ctx, feedback, toRun);
+                } else {
+                    execute(ctx, item.getDisplayTitle(), item.command);
+                }
                 dialog.dismiss();
             });
 
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            lp.bottomMargin = dp(ctx, 5);
-            container.addView(btn, lp);
+            lp.bottomMargin = dp(ctx, 6);
+            container.addView(row, lp);
         }
 
         if (count == 0) {
