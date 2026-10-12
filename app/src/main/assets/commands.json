@@ -1,0 +1,184 @@
+{
+  "command": [
+    {
+      "slug": "jump_on",
+      "title": "Activar Súper Salto",
+      "title_EN": "Enable Super Jump",
+      "command": "cheat_super_jump 1"
+    },
+    {
+      "slug": "jump_off",
+      "title": "Desactivar Súper Salto",
+      "title_EN": "Disable Super Jump",
+      "command": "cheat_super_jump 0"
+    },
+    {
+      "slug": "god_on",
+      "title": "Activar Modo Dios",
+      "title_EN": "Enable God Mode",
+      "command": "cheat_deathless_player 1"
+    },
+    {
+      "slug": "god_off",
+      "title": "Desactivar Modo Dios",
+      "title_EN": "Disable God Mode",
+      "command": "cheat_deathless_player 0"
+    },
+    {
+      "slug": "ammo_on",
+      "title": "Activar Munición Infinita",
+      "title_EN": "Enable Infinite Ammo",
+      "command": "cheat_infinite_ammo 1"
+    },
+    {
+      "slug": "ammo_off",
+      "title": "Desactivar Munición Infinita",
+      "title_EN": "Disable Infinite Ammo",
+      "command": "cheat_infinite_ammo 0"
+    },
+    {
+      "slug": "clip_on",
+      "title": "Activar Cargador sin Fondo",
+      "title_EN": "Enable Bottomless Clip",
+      "command": "cheat_bottomless_clip 1"
+    },
+    {
+      "slug": "clip_off",
+      "title": "Desactivar Cargador sin Fondo",
+      "title_EN": "Disable Bottomless Clip",
+      "command": "cheat_bottomless_clip 0"
+    },
+    {
+      "slug": "medusa_on",
+      "title": "Activar Mirada Mortal",
+      "title_EN": "Enable Medusa Mode",
+      "command": "cheat_medusa 1"
+    },
+    {
+      "slug": "medusa_off",
+      "title": "Desactivar Mirada Mortal",
+      "title_EN": "Disable Medusa Mode",
+      "command": "cheat_medusa 0"
+    },
+    {
+      "slug": "omnipotent_on",
+      "title": "Activar Omnipotencia",
+      "title_EN": "Enable Omnipotent",
+      "command": "cheat_omnipotent 1"
+    },
+    {
+      "slug": "omnipotent_off",
+      "title": "Desactivar Omnipotencia",
+      "title_EN": "Disable Omnipotent",
+      "command": "cheat_omnipotent 0"
+    },
+    {
+      "slug": "possession_on",
+      "title": "Activar Posesión por Contacto",
+      "title_EN": "Enable Bump Possession",
+      "command": "cheat_bump_possession 1"
+    },
+    {
+      "slug": "possession_off",
+      "title": "Desactivar Posesión por Contacto",
+      "title_EN": "Disable Bump Possession",
+      "command": "cheat_bump_possession 0"
+    },
+    {
+      "slug": "camera_on",
+      "title": "Activar Cámara Libre",
+      "title_EN": "Enable Free Camera",
+      "command": "camera_control 1"
+    },
+    {
+      "slug": "camera_off",
+      "title": "Desactivar Cámara Libre",
+      "title_EN": "Disable Free Camera",
+      "command": "camera_control 0"
+    },
+    {
+      "slug": "ai_inert_on",
+      "title": "Congelar Inteligencia Artificial",
+      "title_EN": "Freeze AI",
+      "command": "ai_inert 1"
+    },
+    {
+      "slug": "ai_inert_off",
+      "title": "Reactivar Inteligencia Artificial",
+      "title_EN": "Unfreeze AI",
+      "command": "ai_inert 0"
+    },
+    {
+      "slug": "wireframe_on",
+      "title": "Activar Modo Alámbrico",
+      "title_EN": "Enable Wireframe",
+      "command": "rasterizer_wireframe 1"
+    },
+    {
+      "slug": "wireframe_off",
+      "title": "Desactivar Modo Alámbrico",
+      "title_EN": "Disable Wireframe",
+      "command": "rasterizer_wireframe 0"
+    },
+    {
+      "slug": "stats_on",
+      "title": "Mostrar Estadísticas de FPS",
+      "title_EN": "Show FPS Stats",
+      "command": "set rasterizer_stats 1"
+    },
+    {
+      "slug": "stats_off",
+      "title": "Ocultar Estadísticas de FPS",
+      "title_EN": "Hide FPS Stats",
+      "command": "set rasterizer_stats 0"
+    },
+    {
+      "slug": "fog_on",
+      "title": "Activar Niebla Atmosférica",
+      "title_EN": "Enable Atmospheric Fog",
+      "command": "set rasterizer_fog_atmosphere 1"
+    },
+    {
+      "slug": "fog_off",
+      "title": "Desactivar Niebla Atmosférica",
+      "title_EN": "Disable Atmospheric Fog",
+      "command": "set rasterizer_fog_atmosphere 0"
+    },
+    {
+      "slug": "textures_on",
+      "title": "Activar Texturas Difusas",
+      "title_EN": "Enable Diffuse Textures",
+      "command": "set rasterizer_environment_diffuse_textures 1"
+    },
+    {
+      "slug": "textures_off",
+      "title": "Desactivar Texturas (Modo Gris)",
+      "title_EN": "Disable Diffuse Textures (Gray Mode)",
+      "command": "set rasterizer_environment_diffuse_textures 0"
+    },
+    {
+      "slug": "spawn_weapons",
+      "title": "Generar Todas las Armas",
+      "title_EN": "Spawn All Weapons",
+      "command": "cheat_all_weapons"
+    },
+    {
+      "slug": "spawn_vehicles",
+      "title": "Generar Todos los Vehículos",
+      "title_EN": "Spawn All Vehicles",
+      "command": "cheat_all_vehicles"
+    },
+    {
+      "slug": "spawn_powerups",
+      "title": "Generar Todos los Powerups",
+      "title_EN": "Spawn All Powerups",
+      "command": "cheat_all_powerups"
+    },
+    {
+      "slug": "teleport_cam",
+      "title": "Teletransportar Jugador a la Cámara",
+      "title_EN": "Teleport Player to Camera",
+      "command": "cheat_teleport_to_camera"
+    }
+  ]
+}

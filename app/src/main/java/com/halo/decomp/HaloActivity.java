@@ -53,6 +53,7 @@ public class HaloActivity extends SDLActivity {
         preferHighestRefreshRate();
         acquireMulticastLock();
         TacticalConsole.ensureTelnetConsole(this);
+        CommandManager.syncRemote(this, null);
     }
 
     /** SAF lets the player choose a folder and filename without storage permissions. */

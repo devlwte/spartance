@@ -8,6 +8,8 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
@@ -28,17 +30,16 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 
 /**
- * Spartan CE - Floating Tactical Cheats Console.
- * Displays friendly titles, executes commands instantly, and auto-closes
- * to prevent game freezing.
+ * Spartan CE - Dynamic Tactical Cheats Console.
+ * Loads dynamic commands from GitHub JSON (with offline fallbacks),
+ * executes instantly, and auto-closes without freezing gameplay.
  */
 public final class TacticalConsole {
-
-    private static final Map<String, Boolean> CHEAT_STATES = new HashMap<>();
 
     public static void ensureTelnetConsole(Context context) {
         new Thread(() -> {
@@ -66,6 +67,9 @@ public final class TacticalConsole {
             try {
                 ensureTelnetConsole(activity);
 
+                // Auto-sync in background so next time it has latest
+                CommandManager.syncRemote(activity, null);
+
                 final Dialog dialog = new Dialog(activity);
                 dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
 
@@ -84,53 +88,79 @@ public final class TacticalConsole {
                 LinearLayout header = new LinearLayout(activity);
                 header.setOrientation(LinearLayout.HORIZONTAL);
                 header.setGravity(Gravity.CENTER_VERTICAL);
-                header.setPadding(0, 0, 0, dp(activity, 10));
+                header.setPadding(0, 0, 0, dp(activity, 8));
 
                 TextView tvTitle = new TextView(activity);
-                tvTitle.setText("⚡ CONSOLA DE TRUCOS");
+                tvTitle.setText("⚡ CONSOLA TÁCTICA");
                 tvTitle.setTextColor(Color.parseColor("#00E5FF"));
                 tvTitle.setTextSize(15);
                 tvTitle.setTypeface(Typeface.DEFAULT_BOLD);
                 LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
                 header.addView(tvTitle, titleLp);
 
+                // Refresh / Sync from GitHub button
+                Button btnSync = new Button(activity);
+                btnSync.setText("🔄 ACTUALIZAR");
+                btnSync.setTextColor(Color.parseColor("#AEE7FF"));
+                btnSync.setTextSize(10);
+                btnSync.setTypeface(Typeface.DEFAULT_BOLD);
+                GradientDrawable syncBg = new GradientDrawable();
+                syncBg.setColor(Color.parseColor("#2200E5FF"));
+                syncBg.setCornerRadius(dp(activity, 6));
+                syncBg.setStroke(dp(activity, 1), Color.parseColor("#4400E5FF"));
+                btnSync.setBackground(syncBg);
+                btnSync.setPadding(dp(activity, 8), dp(activity, 4), dp(activity, 8), dp(activity, 4));
+                LinearLayout.LayoutParams syncLp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                syncLp.rightMargin = dp(activity, 8);
+                btnSync.setOnClickListener(v -> {
+                    Toast.makeText(activity, "Sincronizando comandos desde GitHub...", Toast.LENGTH_SHORT).show();
+                    CommandManager.syncRemote(activity, () -> {
+                        Toast.makeText(activity, "⚡ Comandos actualizados", Toast.LENGTH_SHORT).show();
+                        dialog.dismiss();
+                        show(activity);
+                    });
+                });
+                header.addView(btnSync, syncLp);
+
+                // Close button
                 Button btnClose = new Button(activity);
                 btnClose.setText("✕ CERRAR");
                 btnClose.setTextColor(Color.WHITE);
-                btnClose.setTextSize(11);
+                btnClose.setTextSize(10);
                 btnClose.setTypeface(Typeface.DEFAULT_BOLD);
                 GradientDrawable closeBg = new GradientDrawable();
                 closeBg.setColor(Color.parseColor("#33FF3344"));
-                closeBg.setCornerRadius(dp(activity, 8));
+                closeBg.setCornerRadius(dp(activity, 6));
                 closeBg.setStroke(dp(activity, 1), Color.parseColor("#FF5252"));
                 btnClose.setBackground(closeBg);
-                btnClose.setPadding(dp(activity, 12), dp(activity, 4), dp(activity, 12), dp(activity, 4));
+                btnClose.setPadding(dp(activity, 10), dp(activity, 4), dp(activity, 10), dp(activity, 4));
                 btnClose.setOnClickListener(v -> dialog.dismiss());
                 header.addView(btnClose);
 
                 root.addView(header);
 
-                // --- CUSTOM COMMAND INPUT ---
+                // --- SEARCH / CUSTOM COMMAND ROW ---
                 LinearLayout customRow = new LinearLayout(activity);
                 customRow.setOrientation(LinearLayout.HORIZONTAL);
                 customRow.setGravity(Gravity.CENTER_VERTICAL);
-                customRow.setPadding(0, 0, 0, dp(activity, 10));
+                customRow.setPadding(0, 0, 0, dp(activity, 8));
 
-                final EditText etCommand = new EditText(activity);
-                etCommand.setHint("Escribir comando... (ej: cheat_all_weapons)");
-                etCommand.setHintTextColor(Color.parseColor("#778899"));
-                etCommand.setTextColor(Color.WHITE);
-                etCommand.setTextSize(12);
-                etCommand.setSingleLine(true);
+                final EditText etSearch = new EditText(activity);
+                etSearch.setHint("Buscar truco o escribir comando...");
+                etSearch.setHintTextColor(Color.parseColor("#778899"));
+                etSearch.setTextColor(Color.WHITE);
+                etSearch.setTextSize(12);
+                etSearch.setSingleLine(true);
                 GradientDrawable etBg = new GradientDrawable();
                 etBg.setColor(Color.parseColor("#44101722"));
                 etBg.setCornerRadius(dp(activity, 8));
                 etBg.setStroke(dp(activity, 1), Color.parseColor("#334455"));
-                etCommand.setBackground(etBg);
-                etCommand.setPadding(dp(activity, 10), dp(activity, 8), dp(activity, 10), dp(activity, 8));
+                etSearch.setBackground(etBg);
+                etSearch.setPadding(dp(activity, 10), dp(activity, 8), dp(activity, 10), dp(activity, 8));
                 LinearLayout.LayoutParams etLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
                 etLp.rightMargin = dp(activity, 8);
-                customRow.addView(etCommand, etLp);
+                customRow.addView(etSearch, etLp);
 
                 Button btnSend = new Button(activity);
                 btnSend.setText("EJECUTAR");
@@ -143,7 +173,7 @@ public final class TacticalConsole {
                 btnSend.setBackground(sendBg);
                 btnSend.setPadding(dp(activity, 12), dp(activity, 6), dp(activity, 12), dp(activity, 6));
                 btnSend.setOnClickListener(v -> {
-                    String input = etCommand.getText().toString().trim();
+                    String input = etSearch.getText().toString().trim();
                     if (!input.isEmpty()) {
                         execute(activity, input, input);
                         dialog.dismiss();
@@ -153,96 +183,88 @@ public final class TacticalConsole {
 
                 root.addView(customRow);
 
-                // --- CHEATS LIST (SCROLLABLE) ---
+                // --- DYNAMIC COMMANDS LIST (SCROLLABLE) ---
                 ScrollView scroll = new ScrollView(activity);
-                LinearLayout list = new LinearLayout(activity);
-                list.setOrientation(LinearLayout.VERTICAL);
+                final LinearLayout listContainer = new LinearLayout(activity);
+                listContainer.setOrientation(LinearLayout.VERTICAL);
 
-                // Cheat items with short Spanish titles
-                addCheatToggle(activity, list, dialog, "🚀 Súper Salto", "cheat_super_jump");
-                addCheatToggle(activity, list, dialog, "🛡️ Modo Dios (Invencible)", "cheat_deathless_player");
-                addCheatToggle(activity, list, dialog, "♾️ Munición Infinita", "cheat_infinite_ammo");
-                addCheatToggle(activity, list, dialog, "🔫 Cargador Sin Fondo (No Recargar)", "cheat_bottomless_clip");
-                addCheatToggle(activity, list, dialog, "🛩️ Modo Jetpack (Volar)", "cheat_jetpack");
-                addCheatToggle(activity, list, dialog, "👻 Camuflaje / Invisible", "cheat_active_camouflage");
-                addCheatToggle(activity, list, dialog, "💥 Matar de 1 Toque (Omnipotente)", "cheat_omnipotent");
-                addCheatToggle(activity, list, dialog, "👁️ Modo Medusa (Mirada Mortal)", "cheat_medusa");
-                addCheatAction(activity, list, dialog, "📦 Aparecer Todas las Armas", "cheat_all_weapons");
-                addCheatAction(activity, list, dialog, "🚗 Aparecer Todos los Vehículos", "cheat_all_vehicles");
-                addCheatAction(activity, list, dialog, "🏃 Cámara Lenta (0.5x)", "game_speed 0.5");
-                addCheatAction(activity, list, dialog, "⚡ Velocidad Normal (1.0x)", "game_speed 1.0");
-                addCheatAction(activity, list, dialog, "💾 Guardar Checkpoint", "game_save");
-                addCheatAction(activity, list, dialog, "🔄 Cargar Checkpoint", "game_revert");
+                final List<CommandManager.CommandItem> allItems = CommandManager.getCommands(activity);
+                renderCommandList(activity, listContainer, dialog, allItems, "");
 
-                scroll.addView(list);
+                // Live filter as user types
+                etSearch.addTextChangedListener(new TextWatcher() {
+                    @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                    @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                        renderCommandList(activity, listContainer, dialog, allItems, s.toString().trim());
+                    }
+                    @Override public void afterTextChanged(Editable s) {}
+                });
+
+                scroll.addView(listContainer);
                 LinearLayout.LayoutParams scrollLp = new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT, dp(activity, 200));
+                        ViewGroup.LayoutParams.MATCH_PARENT, dp(activity, 220));
                 root.addView(scroll, scrollLp);
 
                 dialog.setContentView(root);
                 if (dialog.getWindow() != null) {
                     dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
-                    dialog.getWindow().setLayout(dp(activity, 460), ViewGroup.LayoutParams.WRAP_CONTENT);
+                    dialog.getWindow().setLayout(dp(activity, 480), ViewGroup.LayoutParams.WRAP_CONTENT);
                 }
                 dialog.show();
             } catch (Exception ignored) {}
         });
     }
 
-    private static void addCheatToggle(Context ctx, LinearLayout parent, Dialog dialog, String label, String cmdBase) {
-        boolean current = CHEAT_STATES.getOrDefault(cmdBase, false);
-        Button btn = new Button(ctx);
-        btn.setText(label + (current ? " [ACTIVO]" : " [APAGADO]"));
-        btn.setTextColor(current ? Color.parseColor("#00E5FF") : Color.WHITE);
-        btn.setTextSize(12);
-        btn.setTypeface(Typeface.DEFAULT_BOLD);
-        btn.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
+    private static void renderCommandList(Context ctx, LinearLayout container, Dialog dialog,
+                                          List<CommandManager.CommandItem> items, String filter) {
+        container.removeAllViews();
+        String lowerFilter = filter.toLowerCase(Locale.ROOT);
 
-        GradientDrawable btnBg = new GradientDrawable();
-        btnBg.setColor(current ? Color.parseColor("#2200E5FF") : Color.parseColor("#22FFFFFF"));
-        btnBg.setCornerRadius(dp(ctx, 8));
-        btnBg.setStroke(dp(ctx, 1), current ? Color.parseColor("#00E5FF") : Color.parseColor("#33FFFFFF"));
-        btn.setBackground(btnBg);
-        btn.setPadding(dp(ctx, 14), dp(ctx, 8), dp(ctx, 14), dp(ctx, 8));
+        int count = 0;
+        for (CommandManager.CommandItem item : items) {
+            String title = item.getDisplayTitle();
+            String cmd = item.command;
+            if (!filter.isEmpty() && !title.toLowerCase(Locale.ROOT).contains(lowerFilter)
+                    && !cmd.toLowerCase(Locale.ROOT).contains(lowerFilter)) {
+                continue;
+            }
 
-        btn.setOnClickListener(v -> {
-            boolean next = !CHEAT_STATES.getOrDefault(cmdBase, false);
-            CHEAT_STATES.put(cmdBase, next);
-            String fullCmd = cmdBase + (next ? " 1" : " 0");
-            execute(ctx, label + (next ? " (Activado)" : " (Desactivado)"), fullCmd);
-            dialog.dismiss();
-        });
+            count++;
+            Button btn = new Button(ctx);
+            btn.setText(title);
+            boolean isOff = item.slug.endsWith("_off");
+            btn.setTextColor(isOff ? Color.parseColor("#FF8A80") : Color.WHITE);
+            btn.setTextSize(12);
+            btn.setTypeface(Typeface.DEFAULT_BOLD);
+            btn.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
 
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.bottomMargin = dp(ctx, 6);
-        parent.addView(btn, lp);
-    }
+            GradientDrawable btnBg = new GradientDrawable();
+            btnBg.setColor(Color.parseColor(isOff ? "#1AFF5252" : "#1AFFFFFF"));
+            btnBg.setCornerRadius(dp(ctx, 8));
+            btnBg.setStroke(dp(ctx, 1), Color.parseColor(isOff ? "#33FF5252" : "#2200E5FF"));
+            btn.setBackground(btnBg);
+            btn.setPadding(dp(ctx, 14), dp(ctx, 8), dp(ctx, 14), dp(ctx, 8));
 
-    private static void addCheatAction(Context ctx, LinearLayout parent, Dialog dialog, String label, String cmd) {
-        Button btn = new Button(ctx);
-        btn.setText(label);
-        btn.setTextColor(Color.WHITE);
-        btn.setTextSize(12);
-        btn.setTypeface(Typeface.DEFAULT_BOLD);
-        btn.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
+            btn.setOnClickListener(v -> {
+                execute(ctx, title, cmd);
+                dialog.dismiss();
+            });
 
-        GradientDrawable btnBg = new GradientDrawable();
-        btnBg.setColor(Color.parseColor("#1AFFFFFF"));
-        btnBg.setCornerRadius(dp(ctx, 8));
-        btnBg.setStroke(dp(ctx, 1), Color.parseColor("#2AFFFFFF"));
-        btn.setBackground(btnBg);
-        btn.setPadding(dp(ctx, 14), dp(ctx, 8), dp(ctx, 14), dp(ctx, 8));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.bottomMargin = dp(ctx, 5);
+            container.addView(btn, lp);
+        }
 
-        btn.setOnClickListener(v -> {
-            execute(ctx, label, cmd);
-            dialog.dismiss();
-        });
-
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.bottomMargin = dp(ctx, 6);
-        parent.addView(btn, lp);
+        if (count == 0) {
+            TextView empty = new TextView(ctx);
+            empty.setText("No se encontraron trucos. Presiona 'EJECUTAR' para enviarlo como comando libre.");
+            empty.setTextColor(Color.parseColor("#88AACC"));
+            empty.setTextSize(11);
+            empty.setPadding(dp(ctx, 12), dp(ctx, 16), dp(ctx, 12), dp(ctx, 16));
+            empty.setGravity(Gravity.CENTER);
+            container.addView(empty);
+        }
     }
 
     public static void execute(final Context context, final String title, final String command) {
@@ -256,6 +278,11 @@ public final class TacticalConsole {
             try (Socket s = new Socket("127.0.0.1", 2323);
                  PrintWriter w = new PrintWriter(s.getOutputStream(), true)) {
                 w.println(cmd);
+                // Also send "(set ...)" variant if it's a cheat toggle
+                if (cmd.startsWith("cheat_") && (cmd.endsWith(" 1") || cmd.endsWith(" 0"))) {
+                    w.println("(set " + cmd + ")");
+                    w.println("set " + cmd);
+                }
             } catch (Exception ignored) {}
         }).start();
 
@@ -273,6 +300,7 @@ public final class TacticalConsole {
         // Step 2 (after 45ms): Type command string and press ENTER
         handler.postDelayed(() -> {
             try {
+                // If it's a toggle command and doesn't have "set", also try standard typing
                 for (int i = 0; i < cmd.length(); i++) {
                     char c = cmd.charAt(i);
                     SDLInputConnection.nativeGenerateScancodeForUnichar(c);
