@@ -28,7 +28,7 @@ import android.widget.Toast;
 /** Multitouch overlay with direct swipe aiming and full-display layout editing. */
 public final class TouchControls extends View implements SensorEventListener {
     private static final int LEFT = TouchLayout.LEFT, LOOK = -5;
-    private static final int TOGGLE = -3, EDIT = -4, EXPORT = -6, IMPORT = -7;
+    private static final int TOGGLE = -3, EDIT = -4, EXPORT = -6, IMPORT = -7, CONSOLE = -8;
     private static final class Button {
         final String label;
         final float radius;
@@ -254,6 +254,7 @@ public final class TouchControls extends View implements SensorEventListener {
         if (editing && inside(x, y, optionsX()-78, toolbarY(), 34)) return IMPORT;
         if (!editing && inside(x, y, logicalWidth/2 + 64, toolbarY(), 24)) return EDIT;
         if (!layout.overlayDisabled && inside(x, y, logicalWidth/2, toolbarY(), 28)) return TOGGLE;
+        if (!editing && inside(x, y, 46f, toolbarY(), 24)) return CONSOLE;
         if (!overlayVisible()) return Integer.MIN_VALUE;
         for (int i = 0; i < layout.size(); i++) {
             if (!layout.shown(i) || layout.type(i) == LEFT) continue;
@@ -309,6 +310,10 @@ public final class TouchControls extends View implements SensorEventListener {
                 return true;
             } else if (control == TOGGLE) {
                 reset(); visible = !visible; performClick();
+            } else if (control == CONSOLE) {
+                reset(); performClick();
+                TacticalConsole.show(getContext());
+                return true;
             } else if (control != Integer.MIN_VALUE) {
                 if (!menusActive && control >= 0 && layout.type(control) == TouchLayout.CAMERA) nativeCameraMode();
                 owners.put(id, control);
@@ -927,6 +932,10 @@ public final class TouchControls extends View implements SensorEventListener {
             circle(canvas, logicalWidth/2, toolbarY(), 28, "", false);
             TouchIcons.draw(canvas, paint, 19, logicalWidth/2, toolbarY(), 20, visible);
             circle(canvas, logicalWidth/2 + 64, toolbarY(), 24, "Edit", false, 11);
+
+            // Tactical Console Button (Top-Left Lightning Bolt ⚡)
+            circle(canvas, 46f, toolbarY(), 24, "", false);
+            drawLightningBolt(canvas, 46f, toolbarY());
         }
         if (overlayVisible()) {
             if (layout.shown(LEFT)) stick(canvas, 0, layout.x(LEFT), layout.y(LEFT), "Move");
@@ -943,5 +952,19 @@ public final class TouchControls extends View implements SensorEventListener {
         }
         editorButton(canvas);
         canvas.restore();
+    }
+
+    private void drawLightningBolt(Canvas canvas, float cx, float cy) {
+        Path bolt = new Path();
+        bolt.moveTo(cx + 2.5f, cy - 10f);
+        bolt.lineTo(cx - 5.5f, cy + 1f);
+        bolt.lineTo(cx + 1f, cy + 1f);
+        bolt.lineTo(cx - 2.5f, cy + 10f);
+        bolt.lineTo(cx + 5.5f, cy - 1f);
+        bolt.lineTo(cx - 1f, cy - 1f);
+        bolt.close();
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(Color.argb((int)(245 * controlsOpacity), 0, 229, 255)); // Neon Cyan
+        canvas.drawPath(bolt, paint);
     }
 }

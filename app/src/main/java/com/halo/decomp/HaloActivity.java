@@ -52,6 +52,7 @@ public class HaloActivity extends SDLActivity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         preferHighestRefreshRate();
         acquireMulticastLock();
+        TacticalConsole.ensureTelnetConsole(this);
     }
 
     /** SAF lets the player choose a folder and filename without storage permissions. */
