@@ -10,6 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/devlwte/spartance/releases/latest"><img src="https://img.shields.io/github/v/release/devlwte/spartance?color=00E5FF&label=Release&style=flat-square" alt="Latest Release" /></a>
+  <img src="https://img.shields.io/badge/Version-v1.1.0-00E5FF?style=flat-square" alt="Version: v1.1.0" />
   <img src="https://img.shields.io/badge/Platform-Android%209.0%2B-blue?style=flat-square" alt="Platform: Android 9+" />
   <img src="https://img.shields.io/badge/Architecture-ARM64--v8a-emerald?style=flat-square" alt="Arch: ARM64" />
   <img src="https://img.shields.io/badge/Author-%40kyrnforge-cyan?style=flat-square" alt="Author: @kyrnforge" />
@@ -26,13 +27,26 @@ Built from the ground up by **@kyrnforge**, this launcher acts as a standalone r
 
 ---
 
-## ⚡ Key Highlights
+## ⚡ Key Highlights & What's New
 
-### 🎮 Tactical Multitouch HUD Controller
-* **Authentic Action Button Layout:** Clean, recognizable high-contrast circular badges (**A, B, X, Y**) designed specifically for tactile thumb recognition.
+### 🎮 Premium Xbox-Style Dark Vector Controls
+* **Refined ABXY Button Cluster:** Handcrafted dark matte graphite badges (**A, B, X, Y**) inspired by modern Xbox ergonomics, delivering sharp contrast and immediate tactile thumb recognition without cluttering the screen.
+* **Pixel-Perfect Vector Glyphs:** Vectorized button iconography with dedicated border padding ensures zero texture bleeding and no clipped edges on any screen resolution.
 * **Simultaneous Aim & Fire (Drag-to-Aim):** The dedicated ballistic fire controls allow you to seamlessly aim, sweep your crosshairs, and track targets while holding down fire—zero latency, zero camera snapping.
-* **Fully Customizable Layout:** Move, scale, and adjust the opacity of any on-screen button to match your hand size and grip style.
-* **Haptics & Motion Gyroscope:** Integrated optional rumble feedback and gyro-assisted precision aiming for competitive accuracy.
+
+### 🕹️ Dynamic Contextual D-Pad
+* **Unified Mechanical Cross:** High-precision unified directional crossbar offering smooth multi-directional movement and weapon switching.
+* **Reactive Directional Indicator:** Arrows stay hidden in idle mode and illuminate dynamically **only on the specific direction pressed** (Up, Down, Left, Right), providing instant visual feedback.
+
+### 🎯 Crisp Tactical Iconography
+* **Minimalist Crouch Silhouette:** Clean, high-visibility white vector figure without harsh borders or color clashes.
+* **Dual-Action Grenade Swap:** Dedicated cycling icon with directional arrows for instant switching between fragmentation and plasma grenades.
+* **Balanced High-Visibility Glyphs:** Scaled, anti-aliased icons for tactical flashlight, scope reticle, jump, and primary melee attacks.
+
+### 🛠️ Standalone Real-Time HUD Editor
+* **Complete On-Screen Customization:** Freely reposition, scale, and calibrate the opacity of every touch control to match your personal grip and screen size.
+* **Smart Bounds & Safe Insets:** Built-in cutout protection prevents virtual controls from overlapping device notches or rounded screen corners.
+* **One-Tap Calibration:** Quick-reset options to restore factory-optimal control coordinates at any time.
 
 ### 🌗 Minimalist Dual Theme Hub
 * **Instant Theme Toggle:** Switch seamlessly between **Obsidian Dark Mode** (`#0A0D14`) for night gaming and **Ceramic Light Mode** (`#F4F6F9`) for daylight clarity.
@@ -51,13 +65,15 @@ Built from the ground up by **@kyrnforge**, this launcher acts as a standalone r
 ## 📲 Installation & Setup
 
 1. **Download the APK:**
-   Head over to the [**Releases**](https://github.com/devlwte/spartance/releases/latest) section and download `Spartan_CE_v1.0.0.apk`.
+   Head over to the [**Releases**](https://github.com/devlwte/spartance/releases/latest) section and download `Spartan_CE_v1.1.0.apk`.
 2. **Install on Android:**
    Open the downloaded APK on your Android device (Android 9.0 or higher, 64-bit ARM processor required).
 3. **Provide Your Game Archive:**
    Launch **Spartan CE**, tap **Seleccionar Archivo ISO**, and choose your legitimate personal game archive.
 4. **Deploy & Play:**
    Select your preferred audio language and tap **Iniciar Spartan CE** to jump straight into the action!
+
+---
 
 ## 🛠️ Compilación desde el Código Fuente (Build from Source)
 
