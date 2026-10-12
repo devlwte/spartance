@@ -124,18 +124,26 @@ public final class CommandManager {
 
     /**
      * Asynchronously downloads commands.json from GitHub, updates cache, and runs callback.
+     * The remote repository JSON always replaces the local cache and commands.
      */
     public static void syncRemote(Context context, Runnable onComplete) {
         new Thread(() -> {
             boolean updated = false;
             HttpURLConnection conn = null;
             try {
-                URL url = new URL(REMOTE_URL);
+                // Add timestamp query parameter so Fastly CDN always returns the absolute latest commit
+                String cacheBustingUrl = REMOTE_URL + "?nocache=" + System.currentTimeMillis();
+                URL url = new URL(cacheBustingUrl);
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setConnectTimeout(4000);
                 conn.setReadTimeout(4000);
+                conn.setUseCaches(false);
+                conn.setDefaultUseCaches(false);
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("User-Agent", "SpartanCE-Mobile/1.0");
+                conn.setRequestProperty("Cache-Control", "no-cache, no-store, must-revalidate");
+                conn.setRequestProperty("Pragma", "no-cache");
+                conn.setRequestProperty("Expires", "0");
 
                 if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
                     try (InputStream in = conn.getInputStream();
@@ -148,7 +156,7 @@ public final class CommandManager {
                         String jsonString = sb.toString();
                         List<CommandItem> parsed = parseJson(jsonString);
                         if (parsed != null && !parsed.isEmpty()) {
-                            // Save to local cache file
+                            // Remote data ALWAYS overrides local cache file and memory cache
                             File file = new File(context.getFilesDir(), CACHE_FILE);
                             try (FileOutputStream out = new FileOutputStream(file)) {
                                 out.write(jsonString.getBytes(StandardCharsets.UTF_8));
@@ -210,6 +218,19 @@ public final class CommandManager {
             if (array == null) array = obj.optJSONArray("commands");
             if (array == null) return null;
 
+            // Parse not_working array (commands to hide from user interface)
+            java.util.Set<String> notWorkingSet = new java.util.HashSet<>();
+            JSONArray notWorkingArray = obj.optJSONArray("not_working");
+            if (notWorkingArray == null) notWorkingArray = obj.optJSONArray("notWorking");
+            if (notWorkingArray != null) {
+                for (int i = 0; i < notWorkingArray.length(); i++) {
+                    String slug = notWorkingArray.optString(i, "").trim().toLowerCase(Locale.ROOT);
+                    if (!slug.isEmpty()) {
+                        notWorkingSet.add(slug);
+                    }
+                }
+            }
+
             List<CommandItem> rawList = new ArrayList<>();
             boolean hasExplicitOffCommand = false;
 
@@ -220,12 +241,30 @@ public final class CommandManager {
                 String titleEn = item.has("title_EN") ? item.optString("title_EN", title) : item.optString("title_en", title);
                 String command = item.optString("command", "").trim();
                 String offCommand = item.optString("off_command", "").trim();
+
+                if (command.isEmpty()) continue;
+
+                // Check if this command is marked as not working
+                String lowerSlug = slug.toLowerCase(Locale.ROOT);
+                String baseSlug = lowerSlug.endsWith("_on") ? lowerSlug.substring(0, lowerSlug.length() - 3)
+                        : lowerSlug.endsWith("_off") ? lowerSlug.substring(0, lowerSlug.length() - 4)
+                        : lowerSlug;
+
+                if (notWorkingSet.contains(lowerSlug) || notWorkingSet.contains(baseSlug)) {
+                    // Hidden: do not include non-working command in the console
+                    continue;
+                }
+
+                // Also check if command prefix is in notWorkingSet (e.g. "cheat_medusa")
+                String cmdPrefix = command.split("\\s+")[0].toLowerCase(Locale.ROOT);
+                if (notWorkingSet.contains(cmdPrefix)) {
+                    continue;
+                }
+
                 if (!offCommand.isEmpty()) {
                     hasExplicitOffCommand = true;
                 }
-                if (!command.isEmpty()) {
-                    rawList.add(new CommandItem(slug, title, titleEn, command, offCommand));
-                }
+                rawList.add(new CommandItem(slug, title, titleEn, command, offCommand));
             }
 
             if (hasExplicitOffCommand) {
@@ -276,7 +315,6 @@ public final class CommandManager {
         list.add(new CommandItem("god", "Activar Modo Dios", "Enable God Mode", "cheat_deathless_player 1", "cheat_deathless_player 0"));
         list.add(new CommandItem("ammo", "Activar Munición Infinita", "Enable Infinite Ammo", "cheat_infinite_ammo 1", "cheat_infinite_ammo 0"));
         list.add(new CommandItem("clip", "Activar Cargador sin Fondo", "Enable Bottomless Clip", "cheat_bottomless_clip 1", "cheat_bottomless_clip 0"));
-        list.add(new CommandItem("medusa", "Activar Mirada Mortal", "Enable Medusa Mode", "cheat_medusa 1", "cheat_medusa 0"));
         list.add(new CommandItem("omnipotent", "Activar Omnipotencia", "Enable Omnipotent", "cheat_omnipotent 1", "cheat_omnipotent 0"));
         list.add(new CommandItem("possession", "Activar Posesión por Contacto", "Enable Bump Possession", "cheat_bump_possession 1", "cheat_bump_possession 0"));
         list.add(new CommandItem("camera", "Activar Cámara Libre", "Enable Free Camera", "camera_control 1", "camera_control 0"));
@@ -286,7 +324,6 @@ public final class CommandManager {
         list.add(new CommandItem("fog", "Activar Niebla Atmosférica", "Enable Atmospheric Fog", "set rasterizer_fog_atmosphere 1", "set rasterizer_fog_atmosphere 0"));
         list.add(new CommandItem("textures", "Activar Texturas Difusas", "Enable Diffuse Textures", "set rasterizer_environment_diffuse_textures 1", "set rasterizer_environment_diffuse_textures 0"));
         list.add(new CommandItem("spawn_weapons", "Generar Todas las Armas", "Spawn All Weapons", "cheat_all_weapons"));
-        list.add(new CommandItem("spawn_vehicles", "Generar Todos los Vehículos", "Spawn All Vehicles", "cheat_all_vehicles"));
         list.add(new CommandItem("spawn_powerups", "Generar Todos los Powerups", "Spawn All Powerups", "cheat_all_powerups"));
         list.add(new CommandItem("teleport_cam", "Teletransportar Jugador a la Cámara", "Teleport Player to Camera", "cheat_teleport_to_camera"));
         return list;

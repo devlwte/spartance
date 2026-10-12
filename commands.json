@@ -115,5 +115,9 @@
       "title_EN": "Teleport Player to Camera",
       "command": "cheat_teleport_to_camera"
     }
+  ],
+  "not_working": [
+    "medusa",
+    "spawn_vehicles"
   ]
 }
