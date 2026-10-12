@@ -317,7 +317,6 @@ public final class CommandManager {
         list.add(new CommandItem("clip", "Activar Cargador sin Fondo", "Enable Bottomless Clip", "cheat_bottomless_clip 1", "cheat_bottomless_clip 0"));
         list.add(new CommandItem("omnipotent", "Activar Omnipotencia", "Enable Omnipotent", "cheat_omnipotent 1", "cheat_omnipotent 0"));
         list.add(new CommandItem("possession", "Activar Posesión por Contacto", "Enable Bump Possession", "cheat_bump_possession 1", "cheat_bump_possession 0"));
-        list.add(new CommandItem("camera", "Activar Cámara Libre", "Enable Free Camera", "camera_control 1", "camera_control 0"));
         list.add(new CommandItem("ai_inert", "Congelar Inteligencia Artificial", "Freeze AI", "ai_inert 1", "ai_inert 0"));
         list.add(new CommandItem("wireframe", "Activar Modo Alámbrico", "Enable Wireframe", "rasterizer_wireframe 1", "rasterizer_wireframe 0"));
         list.add(new CommandItem("stats", "Mostrar Estadísticas de FPS", "Show FPS Stats", "set rasterizer_stats 1", "set rasterizer_stats 0"));

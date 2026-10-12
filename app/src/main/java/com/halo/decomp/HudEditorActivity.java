@@ -76,12 +76,11 @@ public class HudEditorActivity extends Activity {
         "🔄 Cambiar Tipo de Granada",
         "⏸️ Pausa",
         "⬅️ Atrás / Menú",
-        "🔫 Disparo Secundario / Izq.",
-        "📷 Alternar Cámara"
+        "🔫 Disparo Secundario / Izq."
     };
 
     private static final int[] PICKER_INDICES = {
-        12, 16, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 17, 18
+        12, 16, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 17
     };
 
     @Override
@@ -798,7 +797,7 @@ public class HudEditorActivity extends Activity {
             // 4. Todos los demás botones estándar
             for (int i = 0; i < layout.size(); i++) {
                 int type = layout.type(i);
-                if (type == TouchLayout.LEFT || (type >= 12 && type <= 15)) continue;
+                if (type == TouchLayout.LEFT || type == TouchLayout.CAMERA || (type >= 12 && type <= 15)) continue;
 
                 float x = layout.x(i);
                 float y = layout.y(i);

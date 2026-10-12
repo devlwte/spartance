@@ -118,6 +118,7 @@
   ],
   "not_working": [
     "medusa",
-    "spawn_vehicles"
+    "spawn_vehicles",
+    "camera"
   ]
 }

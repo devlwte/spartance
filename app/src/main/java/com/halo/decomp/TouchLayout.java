@@ -68,14 +68,26 @@ final class TouchLayout {
         controls.get(control).size = size;
         move(control, x(control), y(control));
     }
-    boolean shown(int control) { return controls.get(control).shown; }
-    void setShown(int control, boolean shown) { controls.get(control).shown = shown; }
+    boolean shown(int control) {
+        if (control >= 0 && control < controls.size() && controls.get(control).type == CAMERA) {
+            return false;
+        }
+        return controls.get(control).shown;
+    }
+    void setShown(int control, boolean shown) {
+        if (control >= 0 && control < controls.size() && controls.get(control).type == CAMERA) {
+            controls.get(control).shown = false;
+            return;
+        }
+        controls.get(control).shown = shown;
+    }
 
     void resetDefaults() {
         controls.clear();
         for (int i = 0; i < DEFAULTS.length; i++) {
             Control control = new Control(i, DEFAULTS[i][0]*width/960, DEFAULTS[i][1]*height/540);
             control.size = DEFAULT_SIZES[i];
+            if (i == CAMERA) control.shown = false;
             controls.add(control);
         }
         for (int i = 0; i < size(); i++) move(i, x(i), y(i));
@@ -188,12 +200,13 @@ final class TouchLayout {
                         !Float.isFinite(size) || size < MIN_SIZE || size > MAX_SIZE)
                     throw new IllegalArgumentException("Invalid control in layout file");
                 Control control = new Control(type, x, y);
-                control.shown = Boolean.parseBoolean(shown);
+                control.shown = (type == CAMERA) ? false : Boolean.parseBoolean(shown);
                 control.size = size;
                 layout.controls.add(control);
             }
             if (base == 18) {
                 Control camera = new Control(CAMERA, DEFAULTS[CAMERA][0], DEFAULTS[CAMERA][1]);
+                camera.shown = false;
                 layout.controls.add(CAMERA, camera);
             }
             return new Configuration(layout, sensitivity);

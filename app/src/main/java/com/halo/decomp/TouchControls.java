@@ -326,7 +326,8 @@ public final class TouchControls extends View implements SensorEventListener {
                 invalidate();
                 return true;
             } else if (control != Integer.MIN_VALUE) {
-                if (!menusActive && control >= 0 && layout.type(control) == TouchLayout.CAMERA) nativeCameraMode();
+                // Camera button disabled temporarily
+                // if (!menusActive && control >= 0 && layout.type(control) == TouchLayout.CAMERA) nativeCameraMode();
                 owners.put(id, control);
                 if (control >= 0 && layout.type(control) == LEFT) {
                     moveStick(control, x, y);
