@@ -915,6 +915,54 @@ public class HudEditorActivity extends Activity {
                 TouchIcons.drawDpad.setBounds((int)x0, (int)y0, (int)x3, (int)y3);
                 TouchIcons.drawDpad.setAlpha(a);
                 TouchIcons.drawDpad.draw(canvas);
+
+                float totalW = x3 - x0;
+                float totalH = y3 - y0;
+                float arrowBaseW = totalW * 0.20f;
+                float arrowH = totalH * 0.10f;
+
+                boolean pressUp = selectedControl == up;
+                boolean pressDown = selectedControl == down;
+                boolean pressLeft = selectedControl == left;
+                boolean pressRight = selectedControl == right;
+
+                paint.setStyle(Paint.Style.FILL);
+                if (pressUp) {
+                    paint.setColor(Color.argb((int)(255 * controlsOpacity), 255, 255, 255));
+                    Path p = new Path();
+                    p.moveTo(cx, y0);
+                    p.lineTo(cx - arrowBaseW / 2f, y0 + arrowH);
+                    p.lineTo(cx + arrowBaseW / 2f, y0 + arrowH);
+                    p.close();
+                    canvas.drawPath(p, paint);
+                }
+                if (pressDown) {
+                    paint.setColor(Color.argb((int)(255 * controlsOpacity), 255, 255, 255));
+                    Path p = new Path();
+                    p.moveTo(cx, y3);
+                    p.lineTo(cx - arrowBaseW / 2f, y3 - arrowH);
+                    p.lineTo(cx + arrowBaseW / 2f, y3 - arrowH);
+                    p.close();
+                    canvas.drawPath(p, paint);
+                }
+                if (pressLeft) {
+                    paint.setColor(Color.argb((int)(255 * controlsOpacity), 255, 255, 255));
+                    Path p = new Path();
+                    p.moveTo(x0, cy);
+                    p.lineTo(x0 + arrowH, cy - arrowBaseW / 2f);
+                    p.lineTo(x0 + arrowH, cy + arrowBaseW / 2f);
+                    p.close();
+                    canvas.drawPath(p, paint);
+                }
+                if (pressRight) {
+                    paint.setColor(Color.argb((int)(255 * controlsOpacity), 255, 255, 255));
+                    Path p = new Path();
+                    p.moveTo(x3, cy);
+                    p.lineTo(x3 - arrowH, cy - arrowBaseW / 2f);
+                    p.lineTo(x3 - arrowH, cy + arrowBaseW / 2f);
+                    p.close();
+                    canvas.drawPath(p, paint);
+                }
                 return;
             }
 

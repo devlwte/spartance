@@ -868,13 +868,54 @@ public final class TouchControls extends View implements SensorEventListener {
             TouchIcons.drawDpad.setAlpha(a);
             TouchIcons.drawDpad.draw(canvas);
 
-            // Subtle white highlight for active pressed direction
+            float totalW = x3 - x0;
+            float totalH = y3 - y0;
+            float arrowBaseW = totalW * 0.20f;
+            float arrowH = totalH * 0.10f;
+
+            boolean pressUp = held(up) || dragControl == up;
+            boolean pressDown = held(down) || dragControl == down;
+            boolean pressLeft = held(left) || dragControl == left;
+            boolean pressRight = held(right) || dragControl == right;
+
             paint.setStyle(Paint.Style.FILL);
-            paint.setColor(Color.argb((int)(120 * controlsOpacity), 255, 255, 255));
-            if (held(up) || dragControl == up) canvas.drawRect(x1, y0, x2, y1, paint);
-            if (held(down) || dragControl == down) canvas.drawRect(x1, y2, x2, y3, paint);
-            if (held(left) || dragControl == left) canvas.drawRect(x0, y1, x1, y2, paint);
-            if (held(right) || dragControl == right) canvas.drawRect(x2, y1, x3, y2, paint);
+
+            if (pressUp) {
+                paint.setColor(Color.argb((int)(255 * controlsOpacity), 255, 255, 255));
+                Path p = new Path();
+                p.moveTo(cx, y0);
+                p.lineTo(cx - arrowBaseW / 2f, y0 + arrowH);
+                p.lineTo(cx + arrowBaseW / 2f, y0 + arrowH);
+                p.close();
+                canvas.drawPath(p, paint);
+            }
+            if (pressDown) {
+                paint.setColor(Color.argb((int)(255 * controlsOpacity), 255, 255, 255));
+                Path p = new Path();
+                p.moveTo(cx, y3);
+                p.lineTo(cx - arrowBaseW / 2f, y3 - arrowH);
+                p.lineTo(cx + arrowBaseW / 2f, y3 - arrowH);
+                p.close();
+                canvas.drawPath(p, paint);
+            }
+            if (pressLeft) {
+                paint.setColor(Color.argb((int)(255 * controlsOpacity), 255, 255, 255));
+                Path p = new Path();
+                p.moveTo(x0, cy);
+                p.lineTo(x0 + arrowH, cy - arrowBaseW / 2f);
+                p.lineTo(x0 + arrowH, cy + arrowBaseW / 2f);
+                p.close();
+                canvas.drawPath(p, paint);
+            }
+            if (pressRight) {
+                paint.setColor(Color.argb((int)(255 * controlsOpacity), 255, 255, 255));
+                Path p = new Path();
+                p.moveTo(x3, cy);
+                p.lineTo(x3 - arrowH, cy - arrowBaseW / 2f);
+                p.lineTo(x3 - arrowH, cy + arrowBaseW / 2f);
+                p.close();
+                canvas.drawPath(p, paint);
+            }
             return;
         }
 
