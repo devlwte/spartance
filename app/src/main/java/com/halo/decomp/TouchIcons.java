@@ -1,11 +1,28 @@
 package com.halo.decomp;
 
+import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.drawable.Drawable;
+import com.kyrn.spartan.R;
 
-/** Original vector pictograms with the angular, cyan Spartan HUD treatment. */
+/** Original vector pictograms with the angular, cyan Spartan HUD treatment and Xbox vector buttons. */
 final class TouchIcons {
+    private static Drawable drawA, drawB, drawX, drawY, drawCrouch;
+
+    static void init(Context ctx) {
+        if (drawA == null && ctx != null) {
+            try {
+                drawA = ctx.getDrawable(R.drawable.ic_xbox_a);
+                drawB = ctx.getDrawable(R.drawable.ic_xbox_b);
+                drawX = ctx.getDrawable(R.drawable.ic_xbox_x);
+                drawY = ctx.getDrawable(R.drawable.ic_xbox_y);
+                drawCrouch = ctx.getDrawable(R.drawable.ic_crouch_bend);
+            } catch (Exception ignored) {}
+        }
+    }
+
     private static void lines(Canvas c, Paint p, float... points) {
         Path path = new Path();
         path.moveTo(points[0], points[1]);
@@ -30,6 +47,32 @@ final class TouchIcons {
     static float opacity = 1.0f;
 
     static void draw(Canvas c, Paint p, int type, float x, float y, float radius, boolean active) {
+        if (type <= 3) {
+            Drawable d = (type == 0) ? drawA : (type == 1) ? drawB : (type == 2) ? drawX : drawY;
+            if (d != null) {
+                c.save();
+                c.translate(x, y);
+                int r = Math.round(radius);
+                d.setBounds(-r, -r, r, r);
+                int alpha = Math.max(15, (int)((active ? 255 : 215) * opacity));
+                d.setAlpha(alpha);
+                d.draw(c);
+                c.restore();
+                return;
+            }
+        }
+        if (type == 6 && drawCrouch != null) {
+            c.save();
+            c.translate(x, y);
+            int r = Math.round(radius);
+            drawCrouch.setBounds(-r, -r, r, r);
+            int alpha = Math.max(15, (int)((active ? 255 : 215) * opacity));
+            drawCrouch.setAlpha(alpha);
+            drawCrouch.draw(c);
+            c.restore();
+            return;
+        }
+
         c.save(); c.translate(x,y); c.scale(radius/22f,radius/22f);
         p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(1.8f);
         p.setStrokeJoin(Paint.Join.MITER); p.setStrokeCap(Paint.Cap.SQUARE);

@@ -88,6 +88,7 @@ public class HudEditorActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        TouchIcons.init(this);
 
         touchPrefs = getSharedPreferences(PREFS_TOUCH, Context.MODE_PRIVATE);
         controlsOpacity = touchPrefs.getFloat("controls-opacity", 1.0f);
@@ -967,13 +968,29 @@ public class HudEditorActivity extends Activity {
                 return;
             }
 
-            paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(isSelected ? 3.0f : 1.8f);
-            int aStroke = isSelected ? 255 : Math.max(15, (int)(220 * controlsOpacity));
-            paint.setColor(isSelected ? Color.rgb(0, 229, 255) : Color.argb(aStroke, 188, 234, 255));
-            canvas.drawCircle(x, y, radius, paint);
+            if (type <= 3) {
+                if (isSelected) {
+                    paint.setStyle(Paint.Style.STROKE);
+                    paint.setStrokeWidth(3.0f);
+                    paint.setColor(Color.rgb(0, 229, 255));
+                    canvas.drawCircle(x, y, radius + 2, paint);
+                } else {
+                    paint.setStyle(Paint.Style.STROKE);
+                    paint.setStrokeWidth(1.5f);
+                    int aStroke = Math.max(15, (int)(150 * controlsOpacity));
+                    paint.setColor(Color.argb(aStroke, 255, 255, 255));
+                    canvas.drawCircle(x, y, radius, paint);
+                }
+                TouchIcons.draw(canvas, paint, type, x, y, radius, isSelected);
+            } else {
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setStrokeWidth(isSelected ? 3.0f : 1.8f);
+                int aStroke = isSelected ? 255 : Math.max(15, (int)(220 * controlsOpacity));
+                paint.setColor(isSelected ? Color.rgb(0, 229, 255) : Color.argb(aStroke, 188, 234, 255));
+                canvas.drawCircle(x, y, radius, paint);
 
-            TouchIcons.draw(canvas, paint, type, x, y, radius * 0.72f, isSelected);
+                TouchIcons.draw(canvas, paint, type, x, y, radius * 0.72f, isSelected);
+            }
 
             if (isSelected) {
                 drawSelectionIndicator(canvas, x, y, radius * 1.3f);

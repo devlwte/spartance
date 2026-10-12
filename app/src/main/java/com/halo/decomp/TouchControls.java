@@ -128,6 +128,7 @@ public final class TouchControls extends View implements SensorEventListener {
 
     public TouchControls(Context context) {
         super(context);
+        TouchIcons.init(context);
         sensors = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
         gyroscope = sensors == null ? null : sensors.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
         if (Build.VERSION.SDK_INT >= 31) {
@@ -984,8 +985,24 @@ public final class TouchControls extends View implements SensorEventListener {
                 if (type >= 12 && type <= 15) continue;
                 Button b = buttons[type];
                 boolean active = held(i) || dragControl == i;
-                circle(canvas, layout.x(i), layout.y(i), layout.radius(i), "", active, 11*layout.sizeScale(i));
-                TouchIcons.draw(canvas, paint, type, layout.x(i), layout.y(i), layout.radius(i)*0.72f, active);
+                if (type <= 3) {
+                    float r = layout.radius(i);
+                    if (active) {
+                        paint.setStyle(Paint.Style.STROKE);
+                        paint.setStrokeWidth(3.5f);
+                        paint.setColor(Color.argb((int)(245 * controlsOpacity), 0, 229, 255));
+                        canvas.drawCircle(layout.x(i), layout.y(i), r + 2, paint);
+                    } else if (editing) {
+                        paint.setStyle(Paint.Style.STROKE);
+                        paint.setStrokeWidth(1.5f);
+                        paint.setColor(Color.argb((int)(120 * controlsOpacity), 255, 255, 255));
+                        canvas.drawCircle(layout.x(i), layout.y(i), r, paint);
+                    }
+                    TouchIcons.draw(canvas, paint, type, layout.x(i), layout.y(i), r, active);
+                } else {
+                    circle(canvas, layout.x(i), layout.y(i), layout.radius(i), "", active, 11*layout.sizeScale(i));
+                    TouchIcons.draw(canvas, paint, type, layout.x(i), layout.y(i), layout.radius(i)*0.72f, active);
+                }
             }
         }
         editorButton(canvas);
