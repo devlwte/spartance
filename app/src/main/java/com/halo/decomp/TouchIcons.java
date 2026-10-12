@@ -10,6 +10,7 @@ import com.kyrn.spartan.R;
 /** Original vector pictograms with the angular, cyan Spartan HUD treatment and Xbox vector buttons. */
 final class TouchIcons {
     static Drawable drawA, drawB, drawX, drawY, drawCrouch, drawMenu, drawView, drawStick, drawDpad;
+    static Drawable drawGrenade, drawVisible, drawHidden, drawFlashlight, drawSwap;
 
     static void init(Context ctx) {
         if (drawA == null && ctx != null) {
@@ -23,6 +24,11 @@ final class TouchIcons {
                 drawView = ctx.getDrawable(R.drawable.ic_xbox_view);
                 drawStick = ctx.getDrawable(R.drawable.ic_xbox_stick);
                 drawDpad = ctx.getDrawable(R.drawable.ic_xbox_dpad);
+                drawGrenade = ctx.getDrawable(R.drawable.ic_hud_grenade);
+                drawVisible = ctx.getDrawable(R.drawable.ic_hud_visible);
+                drawHidden = ctx.getDrawable(R.drawable.ic_hud_hidden);
+                drawFlashlight = ctx.getDrawable(R.drawable.ic_hud_flashlight);
+                drawSwap = ctx.getDrawable(R.drawable.ic_hud_swap);
             } catch (Exception ignored) {}
         }
     }
@@ -65,6 +71,17 @@ final class TouchIcons {
                 return;
             }
         }
+        if (type == 5 && drawGrenade != null) {
+            c.save();
+            c.translate(x, y);
+            int r = Math.round(radius);
+            drawGrenade.setBounds(-r, -r, r, r);
+            int alpha = Math.max(15, (int)((active ? 255 : 215) * opacity));
+            drawGrenade.setAlpha(alpha);
+            drawGrenade.draw(c);
+            c.restore();
+            return;
+        }
         if (type == 6 && drawCrouch != null) {
             c.save();
             c.translate(x, y);
@@ -73,6 +90,28 @@ final class TouchIcons {
             int alpha = Math.max(15, (int)((active ? 255 : 215) * opacity));
             drawCrouch.setAlpha(alpha);
             drawCrouch.draw(c);
+            c.restore();
+            return;
+        }
+        if (type == 8 && drawFlashlight != null) {
+            c.save();
+            c.translate(x, y);
+            int r = Math.round(radius);
+            drawFlashlight.setBounds(-r, -r, r, r);
+            int alpha = Math.max(15, (int)((active ? 255 : 215) * opacity));
+            drawFlashlight.setAlpha(alpha);
+            drawFlashlight.draw(c);
+            c.restore();
+            return;
+        }
+        if (type == 9 && drawSwap != null) {
+            c.save();
+            c.translate(x, y);
+            int r = Math.round(radius);
+            drawSwap.setBounds(-r, -r, r, r);
+            int alpha = Math.max(15, (int)((active ? 255 : 215) * opacity));
+            drawSwap.setAlpha(alpha);
+            drawSwap.draw(c);
             c.restore();
             return;
         }
@@ -97,6 +136,20 @@ final class TouchIcons {
             drawView.draw(c);
             c.restore();
             return;
+        }
+        if (type == 19) {
+            Drawable d = active ? drawVisible : drawHidden;
+            if (d != null) {
+                c.save();
+                c.translate(x, y);
+                int r = Math.round(radius);
+                d.setBounds(-r, -r, r, r);
+                int alpha = Math.max(15, (int)((active ? 255 : 215) * opacity));
+                d.setAlpha(alpha);
+                d.draw(c);
+                c.restore();
+                return;
+            }
         }
 
         c.save(); c.translate(x,y); c.scale(radius/22f,radius/22f);
