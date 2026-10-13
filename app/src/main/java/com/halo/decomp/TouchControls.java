@@ -121,7 +121,51 @@ public final class TouchControls extends View implements SensorEventListener {
     private float consoleButtonX = 46f, consoleButtonY = -1f;
     private boolean consoleButtonDragging;
     private float consoleDragStartX, consoleDragStartY;
+    private boolean consoleButtonVisible = false;
+    private final java.util.List<Integer> comboHistory = new java.util.ArrayList<>();
+    private long lastComboTime = 0;
+    private static final int[] COMBO_SECRET = {3, 3, 2, 1, 1, 3}; // Y - Y - X - B - B - Y
     private float getConsoleY() { return consoleButtonY < 0 ? toolbarY() : consoleButtonY; }
+
+    private void checkSecretCombo(int type) {
+        if (type != 0 && type != 1 && type != 2 && type != 3) {
+            return;
+        }
+        long now = SystemClock.uptimeMillis();
+        if (now - lastComboTime > 3500) {
+            comboHistory.clear();
+        }
+        lastComboTime = now;
+        comboHistory.add(type);
+        if (comboHistory.size() > COMBO_SECRET.length) {
+            comboHistory.remove(0);
+        }
+        if (comboHistory.size() == COMBO_SECRET.length) {
+            boolean match = true;
+            for (int i = 0; i < COMBO_SECRET.length; i++) {
+                if (comboHistory.get(i) != COMBO_SECRET[i]) {
+                    match = false;
+                    break;
+                }
+            }
+            if (match) {
+                comboHistory.clear();
+                consoleButtonVisible = !consoleButtonVisible;
+                preferences.edit().putBoolean("console_btn_visible", consoleButtonVisible).apply();
+                try {
+                    if (vibrator != null) {
+                        if (Build.VERSION.SDK_INT >= 26) {
+                            vibrator.vibrate(VibrationEffect.createOneShot(140, VibrationEffect.DEFAULT_AMPLITUDE));
+                        } else {
+                            vibrator.vibrate(140);
+                        }
+                    }
+                } catch (Exception ignored) {}
+                post(this::invalidate);
+                TacticalConsole.show(getContext());
+            }
+        }
+    }
 
     private static native void nativeState(int lx, int ly, int rx, int ry,
                                           int lt, int rt, int buttons);
@@ -202,6 +246,7 @@ public final class TouchControls extends View implements SensorEventListener {
         if (!Float.isFinite(controlsOpacity) || controlsOpacity < 0.2f || controlsOpacity > 1.0f) controlsOpacity = 1.0f;
         consoleButtonX = preferences.getFloat("console_btn_x", 46f);
         consoleButtonY = preferences.getFloat("console_btn_y", -1f);
+        consoleButtonVisible = preferences.getBoolean("console_btn_visible", false);
     }
 
     public void reloadPreferences() {
@@ -261,7 +306,7 @@ public final class TouchControls extends View implements SensorEventListener {
         if (editing && inside(x, y, optionsX()-78, toolbarY(), 34)) return IMPORT;
         if (!editing && inside(x, y, logicalWidth/2 + 64, toolbarY(), 24)) return EDIT;
         if (!layout.overlayDisabled && inside(x, y, logicalWidth/2, toolbarY(), 28)) return TOGGLE;
-        if (!editing && inside(x, y, consoleButtonX, getConsoleY(), 28)) return CONSOLE;
+        if (!editing && consoleButtonVisible && inside(x, y, consoleButtonX, getConsoleY(), 28)) return CONSOLE;
         if (!overlayVisible()) return Integer.MIN_VALUE;
         for (int i = 0; i < layout.size(); i++) {
             if (!layout.shown(i) || layout.type(i) == LEFT) continue;
@@ -332,6 +377,9 @@ public final class TouchControls extends View implements SensorEventListener {
                 if (control >= 0 && layout.type(control) == LEFT) {
                     moveStick(control, x, y);
                 } else {
+                    if (control >= 0) {
+                        checkSecretCombo(layout.type(control));
+                    }
                     buttonTouches.put(id, new float[]{event.getX(index), event.getY(index)});
                     if (isRightFire(control)) {
                         lookPointer = id;
@@ -1021,9 +1069,11 @@ public final class TouchControls extends View implements SensorEventListener {
             TouchIcons.draw(canvas, paint, 19, logicalWidth/2, toolbarY(), 20, visible);
             circle(canvas, logicalWidth/2 + 64, toolbarY(), 24, "Edit", false, 11);
 
-            // Tactical Console Button (Draggable Lightning Bolt ⚡)
-            circle(canvas, consoleButtonX, getConsoleY(), 24, "", consoleButtonDragging);
-            drawLightningBolt(canvas, consoleButtonX, getConsoleY());
+            // Tactical Console Button (Hidden by default, unlocked via Y-Y-X-B-B-Y, never in editor)
+            if (!editing && consoleButtonVisible) {
+                circle(canvas, consoleButtonX, getConsoleY(), 24, "", consoleButtonDragging);
+                drawLightningBolt(canvas, consoleButtonX, getConsoleY());
+            }
         }
         if (overlayVisible()) {
             if (layout.shown(LEFT)) stick(canvas, 0, layout.x(LEFT), layout.y(LEFT), "Move");
