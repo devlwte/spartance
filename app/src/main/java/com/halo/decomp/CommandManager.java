@@ -3,6 +3,7 @@ package com.halo.decomp;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -13,7 +14,9 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.net.HttpURLConnection;
+import java.net.Socket;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -91,6 +94,69 @@ public final class CommandManager {
         if (slug == null || slug.isEmpty()) return;
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 .edit().putBoolean("active_" + slug, active).apply();
+    }
+
+    /**
+     * Reapplies all cheats currently marked as ACTIVE in preferences.
+     * Connects in the background to the internal Halo console socket (127.0.0.1:2323)
+     * with retry logic to wait for the engine to initialize.
+     */
+    public static void reapplyActiveCheats(final Context context) {
+        if (context == null) return;
+        final Context appCtx = context.getApplicationContext();
+
+        new Thread(() -> {
+            Socket socket = null;
+            // Wait up to 30 seconds for the engine telnet server to start listening
+            for (int i = 0; i < 30; i++) {
+                try {
+                    socket = new Socket("127.0.0.1", 2323);
+                    if (socket.isConnected()) {
+                        break;
+                    }
+                } catch (Exception e) {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException ignored) {}
+                }
+            }
+
+            if (socket == null) return;
+
+            try (Socket s = socket;
+                 PrintWriter w = new PrintWriter(s.getOutputStream(), true)) {
+
+                List<CommandItem> items = getCommands(appCtx);
+                if (items == null || items.isEmpty()) return;
+
+                int appliedCount = 0;
+                for (CommandItem item : items) {
+                    if (item.isToggle() && isCheatActive(appCtx, item.slug)) {
+                        String cmd = item.command.trim();
+                        if (!cmd.isEmpty()) {
+                            w.println(cmd);
+                            w.flush();
+                            if (cmd.startsWith("cheat_") && cmd.endsWith(" 1")) {
+                                w.println("(set " + cmd + ")");
+                                w.println("set " + cmd);
+                                w.flush();
+                            }
+                            appliedCount++;
+                            try {
+                                Thread.sleep(60);
+                            } catch (InterruptedException ignored) {}
+                        }
+                    }
+                }
+
+                if (appliedCount > 0) {
+                    final int count = appliedCount;
+                    new Handler(Looper.getMainLooper()).post(() -> {
+                        Toast.makeText(appCtx, "⚡ " + count + " truco" + (count > 1 ? "s activos restaurados" : " activo restaurado"), Toast.LENGTH_SHORT).show();
+                    });
+                }
+            } catch (Exception ignored) {}
+        }).start();
     }
 
     private static List<CommandItem> cachedList = null;
