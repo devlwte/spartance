@@ -86,8 +86,10 @@ public final class CommandManager {
 
     public static boolean isCheatActive(Context context, String slug) {
         if (slug == null || slug.isEmpty()) return false;
-        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                .getBoolean("active_" + slug, false);
+        android.content.SharedPreferences sp = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        if (sp.getBoolean("active_" + slug, false)) return true;
+        if (sp.getBoolean("active_" + slug + "_on", false)) return true;
+        return false;
     }
 
     public static void setCheatActive(Context context, String slug, boolean active) {
@@ -121,15 +123,22 @@ public final class CommandManager {
                 }
             }
 
-            if (socket == null) return;
+            if (socket == null) {
+                android.util.Log.w("SpartanCheats", "Could not connect to Halo telnet socket 127.0.0.1:2323");
+                return;
+            }
 
             try (Socket s = socket;
                  PrintWriter w = new PrintWriter(s.getOutputStream(), true)) {
 
                 List<CommandItem> items = getCommands(appCtx);
-                if (items == null || items.isEmpty()) return;
+                if (items == null || items.isEmpty()) {
+                    android.util.Log.w("SpartanCheats", "No commands loaded");
+                    return;
+                }
 
                 int appliedCount = 0;
+                List<String> restoredNames = new ArrayList<>();
                 for (CommandItem item : items) {
                     if (item.isToggle() && isCheatActive(appCtx, item.slug)) {
                         String cmd = item.command.trim();
@@ -142,12 +151,16 @@ public final class CommandManager {
                                 w.flush();
                             }
                             appliedCount++;
+                            restoredNames.add(item.getCleanTitle());
+                            android.util.Log.i("SpartanCheats", "Restored active cheat: " + item.slug + " -> " + cmd);
                             try {
-                                Thread.sleep(60);
+                                Thread.sleep(80);
                             } catch (InterruptedException ignored) {}
                         }
                     }
                 }
+
+                android.util.Log.i("SpartanCheats", "Total active cheats restored: " + appliedCount + " (" + restoredNames + ")");
 
                 if (appliedCount > 0) {
                     final int count = appliedCount;
@@ -155,7 +168,9 @@ public final class CommandManager {
                         Toast.makeText(appCtx, "⚡ " + count + " truco" + (count > 1 ? "s activos restaurados" : " activo restaurado"), Toast.LENGTH_SHORT).show();
                     });
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                android.util.Log.e("SpartanCheats", "Error sending cheats to socket", e);
+            }
         }).start();
     }
 
