@@ -87,6 +87,7 @@ public class LauncherActivity extends Activity {
         passOnInvite(getIntent());
 
         MotdManager.checkAndSyncRemote(this);
+        EngineConfigManager.syncToConfigFile(this);
 
         buildHubInterface();
     }
@@ -133,6 +134,7 @@ public class LauncherActivity extends Activity {
     }
 
     private void startGame() {
+        EngineConfigManager.syncToConfigFile(this);
         startActivity(new Intent(this, HaloActivity.class));
     }
 
@@ -604,6 +606,59 @@ public class LauncherActivity extends Activity {
         LinearLayout.LayoutParams fpsLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
         togglesRow.addView(cbFps, fpsLp);
 
+        CheckBox cbFireHaptics = new CheckBox(this);
+        cbFireHaptics.setText("⚡  Vibración táctil al disparar (Retroceso de armas)");
+        cbFireHaptics.setTextColor(palette.textPrimary);
+        cbFireHaptics.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        cbFireHaptics.setChecked(touchPrefs.getBoolean("fire-haptics", true));
+        cbFireHaptics.setOnCheckedChangeListener((btn, isChecked) -> {
+            hapticFeedback(btn);
+            touchPrefs.edit().putBoolean("fire-haptics", isChecked).commit();
+        });
+        controlsCard.addView(cbFireHaptics);
+
+        LinearLayout gyroSensContainer = new LinearLayout(this);
+        gyroSensContainer.setOrientation(LinearLayout.VERTICAL);
+        gyroSensContainer.setVisibility(cbGyro.isChecked() ? View.VISIBLE : View.GONE);
+        cbGyro.setOnCheckedChangeListener((btn, isChecked) -> {
+            hapticFeedback(btn);
+            touchPrefs.edit().putBoolean("gyroscope", isChecked).commit();
+            gyroSensContainer.setVisibility(isChecked ? View.VISIBLE : View.GONE);
+        });
+
+        TextView tvGyroSens = new TextView(this);
+        float currentGyroSens = touchPrefs.getFloat("gyro-sensitivity", 1.0f);
+        tvGyroSens.setText("Sensibilidad de giroscopio: " + String.format("%.1fx", currentGyroSens));
+        tvGyroSens.setTextColor(palette.textSecondary);
+        tvGyroSens.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        tvGyroSens.setPadding(0, dp(6), 0, dp(4));
+        gyroSensContainer.addView(tvGyroSens);
+
+        LinearLayout gyroSensRow = new LinearLayout(this);
+        gyroSensRow.setOrientation(LinearLayout.HORIZONTAL);
+        float[] gyroValues = { 0.5f, 1.0f, 1.5f, 2.0f };
+        String[] gyroLabels = { "0.5x", "1.0x", "1.5x", "2.0x" };
+        Button[] gyroButtons = new Button[gyroValues.length];
+        for (int i = 0; i < gyroValues.length; i++) {
+            final float val = gyroValues[i];
+            Button b = new Button(this);
+            b.setText(gyroLabels[i]);
+            b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(34), 1.0f);
+            if (i < gyroValues.length - 1) lp.rightMargin = dp(6);
+            gyroSensRow.addView(b, lp);
+            gyroButtons[i] = b;
+            b.setOnClickListener(v -> {
+                hapticFeedback(v);
+                touchPrefs.edit().putFloat("gyro-sensitivity", val).commit();
+                tvGyroSens.setText("Sensibilidad de giroscopio: " + String.format("%.1fx", val));
+                updateSelectorButtons(gyroButtons, gyroValues, val, 0.1f);
+            });
+        }
+        updateSelectorButtons(gyroButtons, gyroValues, currentGyroSens, 0.1f);
+        gyroSensContainer.addView(gyroSensRow);
+        controlsCard.addView(gyroSensContainer);
+
         Button btnResetControls = new Button(this);
         btnResetControls.setText("↺  Restablecer posición de controles a fábrica");
         btnResetControls.setTextColor(palette.btnSecondaryText);
@@ -617,6 +672,175 @@ public class LauncherActivity extends Activity {
             confirmResetControls();
         });
         controlsCard.addView(btnResetControls, resetLp);
+
+        // --- Card 3: Graphics & Engine Performance ---
+        LinearLayout graphicsCard = new LinearLayout(this);
+        graphicsCard.setOrientation(LinearLayout.VERTICAL);
+        graphicsCard.setPadding(dp(18), dp(16), dp(18), dp(16));
+        graphicsCard.setBackground(createCardBackground());
+        root.addView(graphicsCard, cardParams);
+
+        TextView tvGfxTitle = new TextView(this);
+        tvGfxTitle.setText("📺  GRÁFICOS Y MOTOR (ENGINE)");
+        tvGfxTitle.setTextColor(palette.accent);
+        tvGfxTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        tvGfxTitle.setTypeface(Typeface.DEFAULT_BOLD);
+        tvGfxTitle.setPadding(0, 0, 0, dp(10));
+        graphicsCard.addView(tvGfxTitle);
+
+        // 1. FOV (Campo de Visión)
+        TextView tvFov = new TextView(this);
+        float currentFov = EngineConfigManager.getFov(this);
+        tvFov.setText("Campo de Visión (FOV): " + (int)currentFov + "°");
+        tvFov.setTextColor(palette.textSecondary);
+        tvFov.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        tvFov.setPadding(0, dp(4), 0, dp(4));
+        graphicsCard.addView(tvFov);
+
+        LinearLayout fovRow = new LinearLayout(this);
+        fovRow.setOrientation(LinearLayout.HORIZONTAL);
+        float[] fovValues = { 70f, 80f, 90f, 100f };
+        String[] fovLabels = { "70° (Xbox)", "80°", "90° Táctico", "100° Amplio" };
+        Button[] fovButtons = new Button[fovValues.length];
+        for (int i = 0; i < fovValues.length; i++) {
+            final float val = fovValues[i];
+            Button b = new Button(this);
+            b.setText(fovLabels[i]);
+            b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(36), 1.0f);
+            if (i < fovValues.length - 1) lp.rightMargin = dp(6);
+            fovRow.addView(b, lp);
+            fovButtons[i] = b;
+            b.setOnClickListener(v -> {
+                hapticFeedback(v);
+                EngineConfigManager.setFov(this, val);
+                tvFov.setText("Campo de Visión (FOV): " + (int)val + "°");
+                updateSelectorButtons(fovButtons, fovValues, val, 1.0f);
+            });
+        }
+        updateSelectorButtons(fovButtons, fovValues, currentFov, 1.0f);
+        graphicsCard.addView(fovRow);
+
+        // 2. Per-Pixel Lighting Checkbox
+        CheckBox cbPerPixel = new CheckBox(this);
+        cbPerPixel.setText("💡  Iluminación por píxel (Modelos y armaduras suaves)");
+        cbPerPixel.setTextColor(palette.textPrimary);
+        cbPerPixel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        cbPerPixel.setPadding(0, dp(8), 0, dp(4));
+        cbPerPixel.setChecked(EngineConfigManager.isPerPixelLighting(this));
+        cbPerPixel.setOnCheckedChangeListener((btn, isChecked) -> {
+            hapticFeedback(btn);
+            EngineConfigManager.setPerPixelLighting(this, isChecked);
+        });
+        graphicsCard.addView(cbPerPixel);
+
+        // 3. Anti-Aliasing (Suavizado de bordes)
+        TextView tvAa = new TextView(this);
+        tvAa.setText("Suavizado de bordes (Anti-Aliasing):");
+        tvAa.setTextColor(palette.textSecondary);
+        tvAa.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        tvAa.setPadding(0, dp(10), 0, dp(4));
+        graphicsCard.addView(tvAa);
+
+        LinearLayout aaRow = new LinearLayout(this);
+        aaRow.setOrientation(LinearLayout.HORIZONTAL);
+        String[] aaKeys = { "off", "fxaa", "msaa2x", "msaa4x" };
+        String[] aaLabels = { "Apagado", "FXAA", "MSAA 2x", "MSAA 4x" };
+        Button[] aaButtons = new Button[aaKeys.length];
+        String currentAa = EngineConfigManager.getAntiAliasing(this);
+        for (int i = 0; i < aaKeys.length; i++) {
+            final String key = aaKeys[i];
+            Button b = new Button(this);
+            b.setText(aaLabels[i]);
+            b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(36), 1.0f);
+            if (i < aaKeys.length - 1) lp.rightMargin = dp(6);
+            aaRow.addView(b, lp);
+            aaButtons[i] = b;
+            b.setOnClickListener(v -> {
+                hapticFeedback(v);
+                EngineConfigManager.setAntiAliasing(this, key);
+                for (int j = 0; j < aaButtons.length; j++) {
+                    boolean sel = aaKeys[j].equalsIgnoreCase(key);
+                    if (sel) {
+                        aaButtons[j].setBackground(createButtonDrawable(palette.accent, palette.accentBg, 8));
+                        aaButtons[j].setTextColor(Color.rgb(10, 13, 20));
+                        aaButtons[j].setTypeface(Typeface.DEFAULT_BOLD);
+                    } else {
+                        aaButtons[j].setBackground(createButtonBackground(palette.btnSecondaryBg, 8));
+                        aaButtons[j].setTextColor(palette.btnSecondaryText);
+                        aaButtons[j].setTypeface(Typeface.DEFAULT);
+                    }
+                }
+            });
+        }
+        for (int j = 0; j < aaButtons.length; j++) {
+            boolean sel = aaKeys[j].equalsIgnoreCase(currentAa);
+            if (sel) {
+                aaButtons[j].setBackground(createButtonDrawable(palette.accent, palette.accentBg, 8));
+                aaButtons[j].setTextColor(Color.rgb(10, 13, 20));
+                aaButtons[j].setTypeface(Typeface.DEFAULT_BOLD);
+            } else {
+                aaButtons[j].setBackground(createButtonBackground(palette.btnSecondaryBg, 8));
+                aaButtons[j].setTextColor(palette.btnSecondaryText);
+                aaButtons[j].setTypeface(Typeface.DEFAULT);
+            }
+        }
+        graphicsCard.addView(aaRow);
+
+        // 4. Sombras Dinámicas (Shadow Resolution)
+        TextView tvShadow = new TextView(this);
+        tvShadow.setText("Resolución de sombras dinámicas:");
+        tvShadow.setTextColor(palette.textSecondary);
+        tvShadow.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        tvShadow.setPadding(0, dp(10), 0, dp(4));
+        graphicsCard.addView(tvShadow);
+
+        LinearLayout shadowRow = new LinearLayout(this);
+        shadowRow.setOrientation(LinearLayout.HORIZONTAL);
+        int[] shadowValues = { 128, 256, 512, 1024 };
+        String[] shadowLabels = { "128 (Xbox)", "256", "512 (HD)", "1024 (Ultra)" };
+        Button[] shadowButtons = new Button[shadowValues.length];
+        int currentShadow = EngineConfigManager.getShadowResolution(this);
+        for (int i = 0; i < shadowValues.length; i++) {
+            final int res = shadowValues[i];
+            Button b = new Button(this);
+            b.setText(shadowLabels[i]);
+            b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(36), 1.0f);
+            if (i < shadowValues.length - 1) lp.rightMargin = dp(6);
+            shadowRow.addView(b, lp);
+            shadowButtons[i] = b;
+            b.setOnClickListener(v -> {
+                hapticFeedback(v);
+                EngineConfigManager.setShadowResolution(this, res);
+                for (int j = 0; j < shadowButtons.length; j++) {
+                    boolean sel = (shadowValues[j] == res);
+                    if (sel) {
+                        shadowButtons[j].setBackground(createButtonDrawable(palette.accent, palette.accentBg, 8));
+                        shadowButtons[j].setTextColor(Color.rgb(10, 13, 20));
+                        shadowButtons[j].setTypeface(Typeface.DEFAULT_BOLD);
+                    } else {
+                        shadowButtons[j].setBackground(createButtonBackground(palette.btnSecondaryBg, 8));
+                        shadowButtons[j].setTextColor(palette.btnSecondaryText);
+                        shadowButtons[j].setTypeface(Typeface.DEFAULT);
+                    }
+                }
+            });
+        }
+        for (int j = 0; j < shadowButtons.length; j++) {
+            boolean sel = (shadowValues[j] == currentShadow);
+            if (sel) {
+                shadowButtons[j].setBackground(createButtonDrawable(palette.accent, palette.accentBg, 8));
+                shadowButtons[j].setTextColor(Color.rgb(10, 13, 20));
+                shadowButtons[j].setTypeface(Typeface.DEFAULT_BOLD);
+            } else {
+                shadowButtons[j].setBackground(createButtonBackground(palette.btnSecondaryBg, 8));
+                shadowButtons[j].setTextColor(palette.btnSecondaryText);
+                shadowButtons[j].setTypeface(Typeface.DEFAULT);
+            }
+        }
+        graphicsCard.addView(shadowRow);
 
         // --- Card 3: ISO & Language Management (GESTIÓN DE JUEGO) ---
         LinearLayout isoCard = new LinearLayout(this);

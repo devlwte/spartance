@@ -53,6 +53,7 @@ public class HaloActivity extends SDLActivity {
         preferHighestRefreshRate();
         acquireMulticastLock();
         TacticalConsole.ensureTelnetConsole(this);
+        EngineConfigManager.syncToConfigFile(this);
         CommandManager.syncRemote(this, null);
         CommandManager.reapplyActiveCheats(this);
     }

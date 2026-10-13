@@ -39,7 +39,7 @@ final class TouchLayout {
     float gyroscopeSensitivity = 1f;
     boolean overlayDisabled;
     float fieldOfView = 70f;
-    static final float MIN_FOV = 55f, MAX_FOV = 90f;
+    static final float MIN_FOV = 55f, MAX_FOV = 110f;
     static final float MIN_SIZE = 0.5f, MAX_SIZE = 2f;
 
     void bounds(float width, float height) {

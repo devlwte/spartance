@@ -122,10 +122,36 @@ public final class TouchControls extends View implements SensorEventListener {
     private boolean consoleButtonDragging;
     private float consoleDragStartX, consoleDragStartY;
     private boolean consoleButtonVisible = false;
+    private boolean fireHapticsEnabled = true;
     private final java.util.List<Integer> comboHistory = new java.util.ArrayList<>();
     private long lastComboTime = 0;
     private static final int[] COMBO_SECRET = {3, 3, 2, 1, 1, 3}; // Y - Y - X - B - B - Y
     private float getConsoleY() { return consoleButtonY < 0 ? toolbarY() : consoleButtonY; }
+
+    private void triggerWeaponHaptic(int type) {
+        if (!fireHapticsEnabled || vibrator == null || !vibrator.hasVibrator()) return;
+        if (type == 4 || type == 17) { // Fire (Primary or Secondary Left fire)
+            vibratePulse(28, 200);
+        } else if (type == 5) { // Grenade
+            vibratePulse(38, 240);
+        } else if (type == 1) { // Melee
+            vibratePulse(32, 220);
+        }
+    }
+
+    private void vibratePulse(int millis, int amplitude) {
+        try {
+            if (Build.VERSION.SDK_INT >= 26) {
+                if (vibrator.hasAmplitudeControl()) {
+                    vibrator.vibrate(VibrationEffect.createOneShot(millis, amplitude));
+                } else {
+                    vibrator.vibrate(VibrationEffect.createOneShot(millis, VibrationEffect.DEFAULT_AMPLITUDE));
+                }
+            } else {
+                vibrator.vibrate(millis);
+            }
+        } catch (Exception ignored) {}
+    }
 
     private void checkSecretCombo(int type) {
         if (type != 0 && type != 1 && type != 2 && type != 3) {
@@ -243,7 +269,15 @@ public final class TouchControls extends View implements SensorEventListener {
         }
         layout.rumbleEnabled = preferences.getBoolean("rumble", layout.rumbleEnabled);
         layout.gyroscopeEnabled = preferences.getBoolean("gyroscope", layout.gyroscopeEnabled);
+        layout.gyroscopeSensitivity = preferences.getFloat("gyro-sensitivity", layout.gyroscopeSensitivity);
+        fireHapticsEnabled = preferences.getBoolean("fire-haptics", true);
         layout.fpsCounter = preferences.getBoolean("fps-counter", layout.fpsCounter);
+        try {
+            float customFov = EngineConfigManager.getFov(getContext());
+            if (customFov >= TouchLayout.MIN_FOV && customFov <= TouchLayout.MAX_FOV) {
+                layout.fieldOfView = customFov;
+            }
+        } catch (Exception ignored) {}
         sensitivity = preferences.getFloat("look-sensitivity", sensitivity > 0 ? sensitivity : 2f);
         if (!Float.isFinite(sensitivity) || sensitivity < 0.25f || sensitivity > 4f) sensitivity = 2f;
         controlsOpacity = preferences.getFloat("controls-opacity", 1.0f);
@@ -382,7 +416,9 @@ public final class TouchControls extends View implements SensorEventListener {
                     moveStick(control, x, y);
                 } else {
                     if (control >= 0) {
-                        checkSecretCombo(layout.type(control));
+                        int type = layout.type(control);
+                        checkSecretCombo(type);
+                        triggerWeaponHaptic(type);
                     }
                     buttonTouches.put(id, new float[]{event.getX(index), event.getY(index)});
                     if (isRightFire(control)) {
