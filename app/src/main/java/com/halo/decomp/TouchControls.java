@@ -162,7 +162,11 @@ public final class TouchControls extends View implements SensorEventListener {
                     }
                 } catch (Exception ignored) {}
                 post(this::invalidate);
-                TacticalConsole.show(getContext());
+                if (consoleButtonVisible) {
+                    TacticalConsole.show(getContext());
+                } else {
+                    TacticalConsole.dismiss();
+                }
             }
         }
     }

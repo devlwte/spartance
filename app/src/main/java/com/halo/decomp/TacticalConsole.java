@@ -61,6 +61,19 @@ public final class TacticalConsole {
         }).start();
     }
 
+    private static Dialog activeDialog;
+
+    public static void dismiss() {
+        if (activeDialog != null) {
+            try {
+                if (activeDialog.isShowing()) {
+                    activeDialog.dismiss();
+                }
+            } catch (Exception ignored) {}
+            activeDialog = null;
+        }
+    }
+
     public static void show(Context context) {
         if (!(context instanceof Activity)) return;
         final Activity activity = (Activity) context;
@@ -69,11 +82,18 @@ public final class TacticalConsole {
         activity.runOnUiThread(() -> {
             try {
                 ensureTelnetConsole(activity);
+                dismiss();
 
                 // Auto-sync in background so next time it has latest
                 CommandManager.syncRemote(activity, null);
 
                 final Dialog dialog = new Dialog(activity);
+                activeDialog = dialog;
+                dialog.setOnDismissListener(d -> {
+                    if (activeDialog == dialog) {
+                        activeDialog = null;
+                    }
+                });
                 dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
 
                 // Main card container
