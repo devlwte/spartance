@@ -19,6 +19,7 @@ import java.net.HttpURLConnection;
 import java.net.Socket;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -96,24 +97,81 @@ public final class CommandManager {
         if (slug == null || slug.isEmpty()) return;
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 .edit().putBoolean("active_" + slug, active).apply();
+        syncInitTxt(context);
+    }
+
+    /**
+     * Synchronizes active cheats directly into init.txt.
+     * Halo CE natively executes init.txt upon launch and when loading any map/level.
+     */
+    public static void syncInitTxt(Context context) {
+        try {
+            File folder = context.getExternalFilesDir(null);
+            if (folder == null) return;
+            File file = new File(folder, "init.txt");
+
+            List<CommandItem> items = getCommands(context);
+            if (items == null) return;
+
+            StringBuilder block = new StringBuilder();
+            block.append("; BEGIN ANDROID STARTUP CHEATS\n");
+            for (CommandItem item : items) {
+                if (item.isToggle() && isCheatActive(context, item.slug)) {
+                    String cmd = item.command.trim();
+                    if (!cmd.isEmpty()) {
+                        if (cmd.startsWith("cheat_") && cmd.endsWith(" 1")) {
+                            block.append("set ").append(cmd).append("\n");
+                        } else {
+                            block.append(cmd).append("\n");
+                        }
+                    }
+                }
+            }
+            block.append("; END ANDROID STARTUP CHEATS\n");
+
+            String existing = "";
+            if (file.exists()) {
+                existing = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
+            }
+
+            int start = existing.indexOf("; BEGIN ANDROID STARTUP CHEATS");
+            int end = existing.indexOf("; END ANDROID STARTUP CHEATS");
+            String output;
+            if (start >= 0 && end > start) {
+                int endPos = existing.indexOf("\n", end);
+                if (endPos < 0) endPos = end + "; END ANDROID STARTUP CHEATS".length();
+                else endPos++;
+                output = existing.substring(0, start) + block.toString() + existing.substring(endPos);
+            } else {
+                output = existing + (existing.isEmpty() || existing.endsWith("\n") ? "" : "\n") + block.toString();
+            }
+
+            Files.write(file.toPath(), output.getBytes(StandardCharsets.UTF_8));
+            android.util.Log.i("SpartanCheats", "Synced init.txt with active cheats");
+        } catch (Exception e) {
+            android.util.Log.e("SpartanCheats", "Failed to sync init.txt", e);
+        }
     }
 
     /**
      * Reapplies all cheats currently marked as ACTIVE in preferences.
-     * Connects in the background to the internal Halo console socket (127.0.0.1:2323)
-     * with retry logic to wait for the engine to initialize.
+     * Activates them one by one with a timed interval (1200ms) over clean socket connections,
+     * so the Halo engine processes and applies each cheat individually without dropping any.
      */
     public static void reapplyActiveCheats(final Context context) {
         if (context == null) return;
         final Context appCtx = context.getApplicationContext();
 
         new Thread(() -> {
-            Socket socket = null;
-            // Wait up to 30 seconds for the engine telnet server to start listening
+            // 1. Sync init.txt immediately so engine always has startup config
+            syncInitTxt(appCtx);
+
+            // 2. Wait up to 30s for the game engine's telnet console to be ready
+            boolean ready = false;
             for (int i = 0; i < 30; i++) {
-                try {
-                    socket = new Socket("127.0.0.1", 2323);
-                    if (socket.isConnected()) {
+                try (Socket s = new Socket("127.0.0.1", 2323)) {
+                    if (s.isConnected()) {
+                        ready = true;
                         break;
                     }
                 } catch (Exception e) {
@@ -123,55 +181,70 @@ public final class CommandManager {
                 }
             }
 
-            if (socket == null) {
-                android.util.Log.w("SpartanCheats", "Could not connect to Halo telnet socket 127.0.0.1:2323");
+            if (!ready) {
+                android.util.Log.w("SpartanCheats", "Engine console socket not reachable after 30s");
                 return;
             }
 
-            try (Socket s = socket;
-                 PrintWriter w = new PrintWriter(s.getOutputStream(), true)) {
+            // Stabilization pause before sending the first command
+            try {
+                Thread.sleep(1200);
+            } catch (InterruptedException ignored) {}
 
-                List<CommandItem> items = getCommands(appCtx);
-                if (items == null || items.isEmpty()) {
-                    android.util.Log.w("SpartanCheats", "No commands loaded");
-                    return;
+            List<CommandItem> items = getCommands(appCtx);
+            if (items == null || items.isEmpty()) return;
+
+            // Collect active toggle commands
+            List<CommandItem> activeItems = new ArrayList<>();
+            for (CommandItem item : items) {
+                if (item.isToggle() && isCheatActive(appCtx, item.slug)) {
+                    activeItems.add(item);
                 }
+            }
 
-                int appliedCount = 0;
-                List<String> restoredNames = new ArrayList<>();
-                for (CommandItem item : items) {
-                    if (item.isToggle() && isCheatActive(appCtx, item.slug)) {
-                        String cmd = item.command.trim();
-                        if (!cmd.isEmpty()) {
-                            w.println(cmd);
-                            w.flush();
-                            if (cmd.startsWith("cheat_") && cmd.endsWith(" 1")) {
-                                w.println("(set " + cmd + ")");
-                                w.println("set " + cmd);
-                                w.flush();
-                            }
-                            appliedCount++;
-                            restoredNames.add(item.getCleanTitle());
-                            android.util.Log.i("SpartanCheats", "Restored active cheat: " + item.slug + " -> " + cmd);
-                            try {
-                                Thread.sleep(80);
-                            } catch (InterruptedException ignored) {}
-                        }
-                    }
+            if (activeItems.isEmpty()) return;
+
+            final int total = activeItems.size();
+            android.util.Log.i("SpartanCheats", "Starting sequential activation of " + total + " cheats with interval...");
+
+            for (int idx = 0; idx < total; idx++) {
+                CommandItem item = activeItems.get(idx);
+                final int currentNum = idx + 1;
+                final String title = item.getCleanTitle();
+                final String cmd = item.command.trim();
+
+                // Send this individual cheat to the engine
+                sendSingleCommand(cmd);
+
+                // Show visual feedback for each cheat being restored one by one
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    Toast.makeText(appCtx, "⚡ [" + currentNum + "/" + total + "] " + title + " activo", Toast.LENGTH_SHORT).show();
+                });
+
+                android.util.Log.i("SpartanCheats", "Activated [" + currentNum + "/" + total + "]: " + item.slug + " -> " + cmd);
+
+                // Interval between each cheat: 1200ms so engine processes each cleanly
+                if (idx < total - 1) {
+                    try {
+                        Thread.sleep(1200);
+                    } catch (InterruptedException ignored) {}
                 }
-
-                android.util.Log.i("SpartanCheats", "Total active cheats restored: " + appliedCount + " (" + restoredNames + ")");
-
-                if (appliedCount > 0) {
-                    final int count = appliedCount;
-                    new Handler(Looper.getMainLooper()).post(() -> {
-                        Toast.makeText(appCtx, "⚡ " + count + " truco" + (count > 1 ? "s activos restaurados" : " activo restaurado"), Toast.LENGTH_SHORT).show();
-                    });
-                }
-            } catch (Exception e) {
-                android.util.Log.e("SpartanCheats", "Error sending cheats to socket", e);
             }
         }).start();
+    }
+
+    private static void sendSingleCommand(String cmd) {
+        if (cmd == null || cmd.isEmpty()) return;
+        try (Socket s = new Socket("127.0.0.1", 2323);
+             PrintWriter w = new PrintWriter(s.getOutputStream(), true)) {
+            w.println(cmd);
+            w.flush();
+            if (cmd.startsWith("cheat_") && cmd.endsWith(" 1")) {
+                w.println("(set " + cmd + ")");
+                w.println("set " + cmd);
+                w.flush();
+            }
+        } catch (Exception ignored) {}
     }
 
     private static List<CommandItem> cachedList = null;
