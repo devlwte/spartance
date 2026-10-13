@@ -17,10 +17,13 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.kyrn.spartan.R;
 
 import org.libsdl.app.SDLActivity;
 import org.libsdl.app.SDLInputConnection;
@@ -76,43 +79,68 @@ public final class TacticalConsole {
                 // Main card container
                 LinearLayout root = new LinearLayout(activity);
                 root.setOrientation(LinearLayout.VERTICAL);
-                root.setPadding(dp(activity, 16), dp(activity, 14), dp(activity, 16), dp(activity, 14));
+                root.setPadding(dp(activity, 18), dp(activity, 16), dp(activity, 18), dp(activity, 16));
 
                 GradientDrawable bg = new GradientDrawable();
-                bg.setColor(Color.parseColor("#EE0B0E14")); // Dark obsidian translucent
-                bg.setCornerRadius(dp(activity, 14));
-                bg.setStroke(dp(activity, 1.5f), Color.parseColor("#00E5FF")); // Cyan HUD border
+                bg.setColor(Color.parseColor("#F5080C14")); // Premium deep obsidian matte
+                bg.setCornerRadius(dp(activity, 16));
+                bg.setStroke(dp(activity, 1.2f), Color.parseColor("#1B2A3B")); // Subtle tactical slate
                 root.setBackground(bg);
 
                 // --- HEADER BAR ---
                 LinearLayout header = new LinearLayout(activity);
                 header.setOrientation(LinearLayout.HORIZONTAL);
                 header.setGravity(Gravity.CENTER_VERTICAL);
-                header.setPadding(0, 0, 0, dp(activity, 8));
+                header.setPadding(0, 0, 0, dp(activity, 12));
+
+                // Left: Title & Subtitle Group
+                LinearLayout titleGroup = new LinearLayout(activity);
+                titleGroup.setOrientation(LinearLayout.VERTICAL);
+                LinearLayout.LayoutParams titleGroupLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
 
                 TextView tvTitle = new TextView(activity);
-                tvTitle.setText("⚡ CONSOLA TÁCTICA");
+                tvTitle.setText("CONSOLA TÁCTICA");
                 tvTitle.setTextColor(Color.parseColor("#00E5FF"));
-                tvTitle.setTextSize(15);
+                tvTitle.setTextSize(13.5f);
                 tvTitle.setTypeface(Typeface.DEFAULT_BOLD);
-                LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-                header.addView(tvTitle, titleLp);
+                tvTitle.setLetterSpacing(0.04f);
+                titleGroup.addView(tvTitle);
 
-                // Refresh / Sync from GitHub button
-                Button btnSync = new Button(activity);
-                btnSync.setText("🔄 ACTUALIZAR");
-                btnSync.setTextColor(Color.parseColor("#AEE7FF"));
-                btnSync.setTextSize(10);
-                btnSync.setTypeface(Typeface.DEFAULT_BOLD);
-                GradientDrawable syncBg = new GradientDrawable();
-                syncBg.setColor(Color.parseColor("#2200E5FF"));
-                syncBg.setCornerRadius(dp(activity, 6));
-                syncBg.setStroke(dp(activity, 1), Color.parseColor("#4400E5FF"));
-                btnSync.setBackground(syncBg);
-                btnSync.setPadding(dp(activity, 8), dp(activity, 4), dp(activity, 8), dp(activity, 4));
-                LinearLayout.LayoutParams syncLp = new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                TextView tvSub = new TextView(activity);
+                tvSub.setText("SPARTAN ENGINE • COMANDOS");
+                tvSub.setTextColor(Color.parseColor("#5A6E82"));
+                tvSub.setTextSize(8.5f);
+                tvSub.setTypeface(Typeface.DEFAULT_BOLD);
+                tvSub.setLetterSpacing(0.06f);
+                titleGroup.addView(tvSub);
+
+                header.addView(titleGroup, titleGroupLp);
+
+                // Action buttons sizing
+                int btnSize = dp(activity, 32);
+                int iconInnerSize = dp(activity, 16);
+
+                // Reload / Sync button (uses reload_commands.svg)
+                LinearLayout btnSync = new LinearLayout(activity);
+                btnSync.setOrientation(LinearLayout.HORIZONTAL);
+                btnSync.setGravity(Gravity.CENTER);
+                btnSync.setClickable(true);
+                btnSync.setFocusable(true);
+                LinearLayout.LayoutParams syncLp = new LinearLayout.LayoutParams(btnSize, btnSize);
                 syncLp.rightMargin = dp(activity, 8);
+
+                GradientDrawable syncBg = new GradientDrawable();
+                syncBg.setColor(Color.parseColor("#121924"));
+                syncBg.setCornerRadius(dp(activity, 16)); // Sleek circular
+                syncBg.setStroke(dp(activity, 1), Color.parseColor("#223347"));
+                btnSync.setBackground(syncBg);
+
+                ImageView ivSync = new ImageView(activity);
+                ivSync.setImageDrawable(activity.getDrawable(R.drawable.ic_reload_commands));
+                LinearLayout.LayoutParams ivSyncLp = new LinearLayout.LayoutParams(iconInnerSize, iconInnerSize);
+                ivSync.setLayoutParams(ivSyncLp);
+                btnSync.addView(ivSync);
+
                 btnSync.setOnClickListener(v -> {
                     Toast.makeText(activity, "Sincronizando comandos desde GitHub...", Toast.LENGTH_SHORT).show();
                     CommandManager.syncRemote(activity, () -> {
@@ -123,20 +151,28 @@ public final class TacticalConsole {
                 });
                 header.addView(btnSync, syncLp);
 
-                // Close button
-                Button btnClose = new Button(activity);
-                btnClose.setText("✕ CERRAR");
-                btnClose.setTextColor(Color.WHITE);
-                btnClose.setTextSize(10);
-                btnClose.setTypeface(Typeface.DEFAULT_BOLD);
+                // Close button (Minimalist only '✕' icon)
+                LinearLayout btnClose = new LinearLayout(activity);
+                btnClose.setOrientation(LinearLayout.HORIZONTAL);
+                btnClose.setGravity(Gravity.CENTER);
+                btnClose.setClickable(true);
+                btnClose.setFocusable(true);
+                LinearLayout.LayoutParams closeLp = new LinearLayout.LayoutParams(btnSize, btnSize);
+
                 GradientDrawable closeBg = new GradientDrawable();
-                closeBg.setColor(Color.parseColor("#33FF3344"));
-                closeBg.setCornerRadius(dp(activity, 6));
-                closeBg.setStroke(dp(activity, 1), Color.parseColor("#FF5252"));
+                closeBg.setColor(Color.parseColor("#121924"));
+                closeBg.setCornerRadius(dp(activity, 16)); // Sleek circular
+                closeBg.setStroke(dp(activity, 1), Color.parseColor("#223347"));
                 btnClose.setBackground(closeBg);
-                btnClose.setPadding(dp(activity, 10), dp(activity, 4), dp(activity, 10), dp(activity, 4));
+
+                ImageView ivClose = new ImageView(activity);
+                ivClose.setImageDrawable(activity.getDrawable(R.drawable.ic_console_close));
+                LinearLayout.LayoutParams ivCloseLp = new LinearLayout.LayoutParams(iconInnerSize, iconInnerSize);
+                ivClose.setLayoutParams(ivCloseLp);
+                btnClose.addView(ivClose);
+
                 btnClose.setOnClickListener(v -> dialog.dismiss());
-                header.addView(btnClose);
+                header.addView(btnClose, closeLp);
 
                 root.addView(header);
 
@@ -144,34 +180,52 @@ public final class TacticalConsole {
                 LinearLayout customRow = new LinearLayout(activity);
                 customRow.setOrientation(LinearLayout.HORIZONTAL);
                 customRow.setGravity(Gravity.CENTER_VERTICAL);
-                customRow.setPadding(0, 0, 0, dp(activity, 8));
+                customRow.setPadding(0, 0, 0, dp(activity, 10));
 
                 final EditText etSearch = new EditText(activity);
                 etSearch.setHint("Buscar truco o escribir comando...");
-                etSearch.setHintTextColor(Color.parseColor("#778899"));
+                etSearch.setHintTextColor(Color.parseColor("#4D5E70"));
                 etSearch.setTextColor(Color.WHITE);
-                etSearch.setTextSize(12);
+                etSearch.setTextSize(11.5f);
                 etSearch.setSingleLine(true);
                 GradientDrawable etBg = new GradientDrawable();
-                etBg.setColor(Color.parseColor("#44101722"));
+                etBg.setColor(Color.parseColor("#090E16"));
                 etBg.setCornerRadius(dp(activity, 8));
-                etBg.setStroke(dp(activity, 1), Color.parseColor("#334455"));
+                etBg.setStroke(dp(activity, 1), Color.parseColor("#1A2738"));
                 etSearch.setBackground(etBg);
-                etSearch.setPadding(dp(activity, 10), dp(activity, 8), dp(activity, 10), dp(activity, 8));
-                LinearLayout.LayoutParams etLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+                etSearch.setPadding(dp(activity, 12), dp(activity, 8), dp(activity, 12), dp(activity, 8));
+                LinearLayout.LayoutParams etLp = new LinearLayout.LayoutParams(0, dp(activity, 38), 1f);
                 etLp.rightMargin = dp(activity, 8);
                 customRow.addView(etSearch, etLp);
 
-                Button btnSend = new Button(activity);
-                btnSend.setText("EJECUTAR");
-                btnSend.setTextColor(Color.parseColor("#0A0D14"));
-                btnSend.setTextSize(11);
-                btnSend.setTypeface(Typeface.DEFAULT_BOLD);
+                // Minimalist Execute Button with play_command.svg icon
+                LinearLayout btnSend = new LinearLayout(activity);
+                btnSend.setOrientation(LinearLayout.HORIZONTAL);
+                btnSend.setGravity(Gravity.CENTER);
+                btnSend.setClickable(true);
+                btnSend.setFocusable(true);
                 GradientDrawable sendBg = new GradientDrawable();
-                sendBg.setColor(Color.parseColor("#00E5FF"));
+                sendBg.setColor(Color.parseColor("#00E5FF")); // Halo electric cyan
                 sendBg.setCornerRadius(dp(activity, 8));
                 btnSend.setBackground(sendBg);
-                btnSend.setPadding(dp(activity, 12), dp(activity, 6), dp(activity, 12), dp(activity, 6));
+                btnSend.setPadding(dp(activity, 12), dp(activity, 6), dp(activity, 14), dp(activity, 6));
+
+                ImageView ivPlay = new ImageView(activity);
+                ivPlay.setImageDrawable(activity.getDrawable(R.drawable.ic_play_command));
+                int playIconSize = dp(activity, 13);
+                LinearLayout.LayoutParams ivPlayLp = new LinearLayout.LayoutParams(playIconSize, playIconSize);
+                ivPlayLp.rightMargin = dp(activity, 6);
+                btnSend.addView(ivPlay, ivPlayLp);
+
+                TextView tvSend = new TextView(activity);
+                tvSend.setText("EJECUTAR");
+                tvSend.setTextColor(Color.parseColor("#0A0D14"));
+                tvSend.setTextSize(11);
+                tvSend.setTypeface(Typeface.DEFAULT_BOLD);
+                btnSend.addView(tvSend);
+
+                LinearLayout.LayoutParams sendLp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT, dp(activity, 38));
                 btnSend.setOnClickListener(v -> {
                     String input = etSearch.getText().toString().trim();
                     if (!input.isEmpty()) {
@@ -179,7 +233,7 @@ public final class TacticalConsole {
                         dialog.dismiss();
                     }
                 });
-                customRow.addView(btnSend);
+                customRow.addView(btnSend, sendLp);
 
                 root.addView(customRow);
 
@@ -243,34 +297,34 @@ public final class TacticalConsole {
             row.setGravity(Gravity.CENTER_VERTICAL);
             row.setClickable(true);
             row.setFocusable(true);
-            row.setPadding(dp(ctx, 14), dp(ctx, 10), dp(ctx, 14), dp(ctx, 10));
+            row.setPadding(dp(ctx, 14), dp(ctx, 9), dp(ctx, 14), dp(ctx, 9));
 
             GradientDrawable rowBg = new GradientDrawable();
             rowBg.setCornerRadius(dp(ctx, 8));
             if (isActive) {
-                rowBg.setColor(Color.parseColor("#2600E676")); // Emerald green active glow
-                rowBg.setStroke(dp(ctx, 1.5f), Color.parseColor("#00E676"));
+                rowBg.setColor(Color.parseColor("#1800E676")); // Subtle refined emerald glow
+                rowBg.setStroke(dp(ctx, 1.2f), Color.parseColor("#00E676"));
             } else if (isToggle) {
-                rowBg.setColor(Color.parseColor("#14101722")); // Dark subtle translucent
-                rowBg.setStroke(dp(ctx, 1), Color.parseColor("#2B3B4C"));
+                rowBg.setColor(Color.parseColor("#0B1017")); // Deep matte obsidian
+                rowBg.setStroke(dp(ctx, 1), Color.parseColor("#192535"));
             } else {
-                rowBg.setColor(Color.parseColor("#1400E5FF")); // Instant action cyan
-                rowBg.setStroke(dp(ctx, 1), Color.parseColor("#3300E5FF"));
+                rowBg.setColor(Color.parseColor("#0C1420")); // Subtle cyan tint
+                rowBg.setStroke(dp(ctx, 1), Color.parseColor("#2600E5FF"));
             }
             row.setBackground(rowBg);
 
             // Left: Title
             TextView tvTitle = new TextView(ctx);
             tvTitle.setText(cleanTitle);
-            tvTitle.setTextColor(isActive ? Color.parseColor("#E0FFE8") : Color.WHITE);
-            tvTitle.setTextSize(12);
+            tvTitle.setTextColor(isActive ? Color.parseColor("#EAFFF1") : Color.parseColor("#E2E8F0"));
+            tvTitle.setTextSize(11.5f);
             tvTitle.setTypeface(Typeface.DEFAULT_BOLD);
             LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
             row.addView(tvTitle, titleLp);
 
             // Right: Status Badge
             TextView tvBadge = new TextView(ctx);
-            tvBadge.setTextSize(10);
+            tvBadge.setTextSize(9.5f);
             tvBadge.setTypeface(Typeface.DEFAULT_BOLD);
             tvBadge.setPadding(dp(ctx, 8), dp(ctx, 3), dp(ctx, 8), dp(ctx, 3));
             GradientDrawable badgeBg = new GradientDrawable();
@@ -279,18 +333,18 @@ public final class TacticalConsole {
             if (isActive) {
                 tvBadge.setText("● ACTIVO");
                 tvBadge.setTextColor(Color.parseColor("#00E676"));
-                badgeBg.setColor(Color.parseColor("#3300E676"));
+                badgeBg.setColor(Color.parseColor("#2600E676"));
                 badgeBg.setStroke(dp(ctx, 1), Color.parseColor("#00E676"));
             } else if (isToggle) {
-                tvBadge.setText("○ DESACTIVADO");
-                tvBadge.setTextColor(Color.parseColor("#8899A6"));
-                badgeBg.setColor(Color.parseColor("#1A8899A6"));
-                badgeBg.setStroke(dp(ctx, 1), Color.parseColor("#338899A6"));
+                tvBadge.setText("○ INACTIVO");
+                tvBadge.setTextColor(Color.parseColor("#64748B"));
+                badgeBg.setColor(Color.parseColor("#121A24"));
+                badgeBg.setStroke(dp(ctx, 1), Color.parseColor("#233346"));
             } else {
-                tvBadge.setText("⚡ EJECUTAR");
+                tvBadge.setText("⚡ ACCIÓN");
                 tvBadge.setTextColor(Color.parseColor("#00E5FF"));
-                badgeBg.setColor(Color.parseColor("#2200E5FF"));
-                badgeBg.setStroke(dp(ctx, 1), Color.parseColor("#4400E5FF"));
+                badgeBg.setColor(Color.parseColor("#1A00E5FF"));
+                badgeBg.setStroke(dp(ctx, 1), Color.parseColor("#3300E5FF"));
             }
             tvBadge.setBackground(badgeBg);
             row.addView(tvBadge);
@@ -310,7 +364,7 @@ public final class TacticalConsole {
 
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            lp.bottomMargin = dp(ctx, 6);
+            lp.bottomMargin = dp(ctx, 5);
             container.addView(row, lp);
         }
 
