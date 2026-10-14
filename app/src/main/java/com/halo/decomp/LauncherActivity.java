@@ -1,7 +1,5 @@
 package com.halo.decomp;
 
-import com.kyrn.spartan.R;
-
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
@@ -13,6 +11,7 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.StateListDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -26,6 +25,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -33,6 +33,8 @@ import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.kyrn.spartan.R;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -42,11 +44,13 @@ import java.nio.channels.FileChannel;
 import java.util.List;
 
 /**
- * Spartan CE - Tactical Hub & Launcher.
+ * Spartan CE - Modern Tactical Gaming Hub & Launcher.
  * Features:
- * - Multi-language ISO extractor with language detection (maps_es, maps_it, maps).
- * - Virtual on-screen touch controller HUD configuration (opacity, sensitivity, gyro, rumble, FPS).
- * - Game launcher with game data validation.
+ * - Multi-page tabbed architecture (Jugar, Gráficos, Controles, Sistema)
+ * - Smooth hardware-accelerated slide & fade transitions
+ * - Real-time graphics engine synchronization (FOV, Per-Pixel Lighting, AA, Shadows)
+ * - Tactile weapon fire haptics & gyro tuning
+ * - Multi-language ISO management and data integrity checks
  */
 public class LauncherActivity extends Activity {
     private static final int PICK_IMAGE = 1;
@@ -70,13 +74,26 @@ public class LauncherActivity extends Activity {
     private boolean isDarkMode = true;
     private ThemePalette palette;
 
+    // Tab Navigation & Page Management
+    private int activeTab = 0;
+    private FrameLayout pageContainer;
+    private View[] pages;
+    private Button[] tabButtons;
+    private final String[] TAB_TITLES = { "🎮  JUGAR", "📺  GRÁFICOS", "🕹️  CONTROLES", "⚙️  SISTEMA" };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         hubPrefs = getSharedPreferences(PREFS_HUB, Context.MODE_PRIVATE);
         touchPrefs = getSharedPreferences(PREFS_TOUCH, Context.MODE_PRIVATE);
-        isDarkMode = hubPrefs.getBoolean("dark_mode", true);
+        isDarkMode = hubPrefs.getBoolean("dark_mode_modern", true);
+        activeTab = hubPrefs.getInt("active_tab", 0);
         palette = new ThemePalette(isDarkMode);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            getWindow().setStatusBarColor(palette.bgRoot);
+            getWindow().setNavigationBarColor(palette.bgRoot);
+        }
 
         dataRoot = getExternalFilesDir(null);
         if (dataRoot != null) {
@@ -153,6 +170,9 @@ public class LauncherActivity extends Activity {
         final int accent;
         final int accentBg;
         final int accentText;
+        final int tabInactiveBg;
+        final int tabActiveBg;
+        final int tabActiveBorder;
         final int btnSecondaryBg;
         final int btnSecondaryText;
         final int successBadgeBg;
@@ -163,32 +183,38 @@ public class LauncherActivity extends Activity {
 
         ThemePalette(boolean dark) {
             if (dark) {
-                bgRoot = Color.rgb(10, 13, 20); // #0A0D14
-                bgCard = Color.argb(235, 17, 23, 34); // #111722
-                strokeCard = Color.argb(120, 30, 41, 59); // #1E293B
-                textPrimary = Color.rgb(248, 250, 252); // #F8FAFC
+                bgRoot = Color.rgb(11, 14, 20); // #0B0E14 Deep obsidian matte
+                bgCard = Color.argb(235, 18, 24, 38); // #121826 High-end dark slate
+                strokeCard = Color.argb(120, 34, 46, 68); // #222E44 Subtle clean border
+                textPrimary = Color.rgb(241, 245, 249); // #F1F5F9
                 textSecondary = Color.rgb(148, 163, 184); // #94A3B8
                 textMuted = Color.rgb(100, 116, 139); // #64748B
-                accent = Color.rgb(0, 229, 255); // #00E5FF
-                accentBg = Color.rgb(0, 229, 255);
-                accentText = Color.rgb(10, 13, 20);
-                btnSecondaryBg = Color.argb(180, 26, 36, 52);
+                accent = Color.rgb(56, 189, 248); // #38BDF8 Tactical Ice Blue
+                accentBg = Color.rgb(14, 165, 233); // #0EA5E9
+                accentText = Color.rgb(11, 14, 20);
+                tabInactiveBg = Color.argb(120, 15, 20, 30);
+                tabActiveBg = Color.argb(220, 24, 34, 52);
+                tabActiveBorder = Color.rgb(56, 189, 248);
+                btnSecondaryBg = Color.argb(180, 26, 36, 54);
                 btnSecondaryText = Color.rgb(226, 232, 240);
-                successBadgeBg = Color.argb(60, 16, 185, 129);
+                successBadgeBg = Color.argb(50, 16, 185, 129);
                 successBadgeText = Color.rgb(52, 211, 153);
-                warningBadgeBg = Color.argb(60, 245, 158, 11);
+                warningBadgeBg = Color.argb(50, 245, 158, 11);
                 warningBadgeText = Color.rgb(251, 191, 36);
                 divider = Color.argb(60, 51, 65, 85);
             } else {
-                bgRoot = Color.rgb(244, 246, 249); // #F4F6F9
-                bgCard = Color.rgb(255, 255, 255); // #FFFFFF
-                strokeCard = Color.rgb(226, 232, 240); // #E2E8F0
-                textPrimary = Color.rgb(15, 23, 42); // #0F172A
-                textSecondary = Color.rgb(71, 85, 105); // #475569
-                textMuted = Color.rgb(148, 163, 184); // #94A3B8
-                accent = Color.rgb(2, 132, 199); // #0284C7
+                bgRoot = Color.rgb(243, 245, 249);
+                bgCard = Color.rgb(255, 255, 255);
+                strokeCard = Color.rgb(222, 228, 238);
+                textPrimary = Color.rgb(15, 23, 42);
+                textSecondary = Color.rgb(71, 85, 105);
+                textMuted = Color.rgb(148, 163, 184);
+                accent = Color.rgb(2, 132, 199);
                 accentBg = Color.rgb(2, 132, 199);
                 accentText = Color.rgb(255, 255, 255);
+                tabInactiveBg = Color.rgb(241, 245, 249);
+                tabActiveBg = Color.rgb(224, 242, 254);
+                tabActiveBorder = Color.rgb(2, 132, 199);
                 btnSecondaryBg = Color.rgb(241, 245, 249);
                 btnSecondaryText = Color.rgb(30, 41, 59);
                 successBadgeBg = Color.rgb(209, 250, 229);
@@ -248,6 +274,22 @@ public class LauncherActivity extends Activity {
         return sld;
     }
 
+    private Drawable createTabActiveDrawable() {
+        GradientDrawable normal = new GradientDrawable();
+        normal.setColor(palette.tabActiveBg);
+        normal.setCornerRadius(dp(10));
+        normal.setStroke(dp(1.2f), palette.tabActiveBorder);
+
+        GradientDrawable pressed = new GradientDrawable();
+        pressed.setColor(palette.tabActiveBorder);
+        pressed.setCornerRadius(dp(10));
+
+        StateListDrawable sld = new StateListDrawable();
+        sld.addState(new int[] { android.R.attr.state_pressed }, pressed);
+        sld.addState(new int[] {}, normal);
+        return sld;
+    }
+
     private void updateSelectorButtons(Button[] buttons, float[] values, float current, float tolerance) {
         for (int i = 0; i < buttons.length; i++) {
             boolean selected = Math.abs(values[i] - current) <= tolerance;
@@ -270,21 +312,27 @@ public class LauncherActivity extends Activity {
         return gd;
     }
 
-    private void buildHubInterface() {
-        ScrollView scrollView = new ScrollView(this);
-        scrollView.setBackgroundColor(palette.bgRoot);
-        scrollView.setFillViewport(true);
+    private LinearLayout.LayoutParams createCardParams() {
+        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        cardParams.bottomMargin = dp(14);
+        return cardParams;
+    }
 
+    /**
+     * Builds the modernized Spartan Hub interface with top tabs and smooth page transitions.
+     */
+    private void buildHubInterface() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(20), dp(16), dp(20), dp(28));
-        scrollView.addView(root);
+        root.setBackgroundColor(palette.bgRoot);
+        root.setPadding(dp(20), dp(14), dp(20), dp(16));
 
         // --- Header Row (Logo + Title + Theme Switcher) ---
         LinearLayout headerRow = new LinearLayout(this);
         headerRow.setOrientation(LinearLayout.HORIZONTAL);
         headerRow.setGravity(Gravity.CENTER_VERTICAL);
-        headerRow.setPadding(0, 0, 0, dp(16));
+        headerRow.setPadding(0, 0, 0, dp(12));
         root.addView(headerRow);
 
         LinearLayout titleGroup = new LinearLayout(this);
@@ -293,20 +341,20 @@ public class LauncherActivity extends Activity {
         LinearLayout.LayoutParams titleGroupLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
         headerRow.addView(titleGroup, titleGroupLp);
 
-        // M6D Pistol Emblem
+        // M6D Pistol Emblem (Icon retained)
         ImageView ivLogo = new ImageView(this);
         ivLogo.setImageResource(R.drawable.m6d_emblem);
-        int logoSize = dp(44);
+        int logoSize = dp(40);
         LinearLayout.LayoutParams logoLp = new LinearLayout.LayoutParams(logoSize, logoSize);
         ivLogo.setScaleType(ImageView.ScaleType.FIT_CENTER);
         ivLogo.setPadding(dp(4), dp(4), dp(4), dp(4));
         ivLogo.setClipToOutline(true);
         GradientDrawable logoBg = new GradientDrawable();
-        logoBg.setCornerRadius(dp(12));
-        logoBg.setColor(Color.rgb(10, 13, 20)); // Obsidian #0A0D14 badge
+        logoBg.setCornerRadius(dp(10));
+        logoBg.setColor(Color.rgb(10, 13, 20)); // Obsidian badge
         logoBg.setStroke(dp(1), palette.strokeCard);
         ivLogo.setBackground(logoBg);
-        logoLp.rightMargin = dp(12);
+        logoLp.rightMargin = dp(10);
         titleGroup.addView(ivLogo, logoLp);
 
         LinearLayout textCol = new LinearLayout(this);
@@ -316,43 +364,163 @@ public class LauncherActivity extends Activity {
         TextView title = new TextView(this);
         title.setText("SPARTAN CE");
         title.setTextColor(palette.textPrimary);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         textCol.addView(title);
 
         TextView subtitle = new TextView(this);
         subtitle.setText(MotdManager.getCurrentMessage(this));
         subtitle.setTextColor(palette.textSecondary);
-        subtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        subtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
         textCol.addView(subtitle);
 
         // Theme Toggle Pill
         Button btnTheme = new Button(this);
         btnTheme.setText(isDarkMode ? "☀️ LUZ" : "🌙 OSCURO");
-        btnTheme.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        btnTheme.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
         btnTheme.setTypeface(Typeface.DEFAULT_BOLD);
         btnTheme.setTextColor(palette.btnSecondaryText);
-        btnTheme.setBackground(createButtonBackground(palette.btnSecondaryBg, 16));
-        btnTheme.setPadding(dp(14), dp(6), dp(14), dp(6));
+        btnTheme.setBackground(createButtonBackground(palette.btnSecondaryBg, 14));
+        btnTheme.setPadding(dp(12), dp(4), dp(12), dp(4));
         btnTheme.setOnClickListener(v -> {
             hapticFeedback(v);
             isDarkMode = !isDarkMode;
-            hubPrefs.edit().putBoolean("dark_mode", isDarkMode).apply();
+            hubPrefs.edit().putBoolean("dark_mode_modern", isDarkMode).apply();
             palette = new ThemePalette(isDarkMode);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                getWindow().setStatusBarColor(palette.bgRoot);
+                getWindow().setNavigationBarColor(palette.bgRoot);
+            }
             buildHubInterface();
         });
         headerRow.addView(btnTheme);
 
-        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
+        // --- Modern Tab Bar (Horizontal Navigation) ---
+        LinearLayout tabBar = new LinearLayout(this);
+        tabBar.setOrientation(LinearLayout.HORIZONTAL);
+        tabBar.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams tabBarLp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        cardParams.bottomMargin = dp(14);
+        tabBarLp.bottomMargin = dp(12);
+        root.addView(tabBar, tabBarLp);
 
-        // --- Card 1: Game Launch & Status (Hero Card) ---
+        tabButtons = new Button[TAB_TITLES.length];
+        for (int i = 0; i < TAB_TITLES.length; i++) {
+            final int index = i;
+            Button tb = new Button(this);
+            tb.setText(TAB_TITLES[i]);
+            tb.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f);
+            LinearLayout.LayoutParams tbLp = new LinearLayout.LayoutParams(0, dp(38), 1.0f);
+            if (i < TAB_TITLES.length - 1) tbLp.rightMargin = dp(6);
+            tb.setOnClickListener(v -> {
+                hapticFeedback(v);
+                selectTab(index, true);
+            });
+            tabBar.addView(tb, tbLp);
+            tabButtons[i] = tb;
+        }
+
+        // --- Page Container (Transitions between tabs) ---
+        pageContainer = new FrameLayout(this);
+        LinearLayout.LayoutParams containerLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1.0f);
+        root.addView(pageContainer, containerLp);
+
+        pages = new View[4];
+        pages[0] = buildPagePlay();
+        pages[1] = buildPageGraphics();
+        pages[2] = buildPageControls();
+        pages[3] = buildPageSystem();
+
+        for (int i = 0; i < pages.length; i++) {
+            pages[i].setVisibility(i == activeTab ? View.VISIBLE : View.GONE);
+            pageContainer.addView(pages[i], new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        }
+
+        if (activeTab < 0 || activeTab >= pages.length) activeTab = 0;
+        selectTab(activeTab, false);
+
+        setContentView(root);
+        updateStatusUI();
+    }
+
+    /**
+     * Smoothly switches tabs with hardware-accelerated slide and fade animation.
+     */
+    private void selectTab(int index, boolean animate) {
+        if (pages == null || index < 0 || index >= pages.length) return;
+        final int oldTab = activeTab;
+        activeTab = index;
+        hubPrefs.edit().putInt("active_tab", activeTab).apply();
+
+        // Update tab button styles
+        for (int i = 0; i < tabButtons.length; i++) {
+            boolean isSelected = (i == activeTab);
+            if (isSelected) {
+                tabButtons[i].setBackground(createTabActiveDrawable());
+                tabButtons[i].setTextColor(palette.accent);
+                tabButtons[i].setTypeface(Typeface.DEFAULT_BOLD);
+            } else {
+                tabButtons[i].setBackground(createButtonBackground(palette.tabInactiveBg, 10));
+                tabButtons[i].setTextColor(palette.textSecondary);
+                tabButtons[i].setTypeface(Typeface.DEFAULT);
+            }
+        }
+
+        if (oldTab == index && !animate) {
+            for (int i = 0; i < pages.length; i++) {
+                if (pages[i] != null) {
+                    pages[i].setVisibility(i == activeTab ? View.VISIBLE : View.GONE);
+                    pages[i].setAlpha(1f);
+                    pages[i].setTranslationX(0f);
+                }
+            }
+            return;
+        }
+
+        if (animate && oldTab != index && pages[oldTab] != null && pages[activeTab] != null) {
+            final View outView = pages[oldTab];
+            final View inView = pages[activeTab];
+            final int direction = (index > oldTab) ? 1 : -1;
+
+            outView.animate().alpha(0f).translationX(-direction * dp(20)).setDuration(150)
+                .withEndAction(() -> {
+                    outView.setVisibility(View.GONE);
+                    outView.setTranslationX(0f);
+                }).start();
+
+            inView.setAlpha(0f);
+            inView.setTranslationX(direction * dp(20));
+            inView.setVisibility(View.VISIBLE);
+            inView.animate().alpha(1f).translationX(0f).setDuration(220).start();
+        } else {
+            for (int i = 0; i < pages.length; i++) {
+                if (pages[i] != null) {
+                    pages[i].setVisibility(i == activeTab ? View.VISIBLE : View.GONE);
+                    pages[i].setAlpha(1f);
+                    pages[i].setTranslationX(0f);
+                }
+            }
+        }
+    }
+
+    // ==========================================
+    // TAB 1: JUGAR (HERO LAUNCH DASHBOARD)
+    // ==========================================
+    private View buildPagePlay() {
+        ScrollView sv = new ScrollView(this);
+        sv.setFillViewport(true);
+        LinearLayout page = new LinearLayout(this);
+        page.setOrientation(LinearLayout.VERTICAL);
+        sv.addView(page);
+
+        // Hero Launch Card
         LinearLayout launchCard = new LinearLayout(this);
         launchCard.setOrientation(LinearLayout.VERTICAL);
         launchCard.setPadding(dp(18), dp(16), dp(18), dp(16));
         launchCard.setBackground(createCardBackground());
-        root.addView(launchCard, cardParams);
+        page.addView(launchCard, createCardParams());
 
         LinearLayout badgeRow = new LinearLayout(this);
         badgeRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -369,8 +537,7 @@ public class LauncherActivity extends Activity {
         badgeRow.addView(tvStatusHeader);
 
         View badgeSpacer = new View(this);
-        LinearLayout.LayoutParams spacerLp = new LinearLayout.LayoutParams(0, 0, 1.0f);
-        badgeRow.addView(badgeSpacer, spacerLp);
+        badgeRow.addView(badgeSpacer, new LinearLayout.LayoutParams(0, 0, 1.0f));
 
         tvInstalledLang = new TextView(this);
         tvInstalledLang.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
@@ -384,8 +551,6 @@ public class LauncherActivity extends Activity {
         LinearLayout.LayoutParams launchBtnLp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
         launchCard.addView(btnLaunch, launchBtnLp);
-
-        updateStatusUI();
 
         progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.setMax(1000);
@@ -402,286 +567,80 @@ public class LauncherActivity extends Activity {
         statusText.setPadding(0, dp(6), 0, 0);
         launchCard.addView(statusText);
 
-        // --- Card 2: Virtual Touch Controls HUD Settings ---
-        LinearLayout controlsCard = new LinearLayout(this);
-        controlsCard.setOrientation(LinearLayout.VERTICAL);
-        controlsCard.setPadding(dp(18), dp(16), dp(18), dp(16));
-        controlsCard.setBackground(createCardBackground());
-        root.addView(controlsCard, cardParams);
+        // Telemetry & Quick Access Card
+        LinearLayout telemetryCard = new LinearLayout(this);
+        telemetryCard.setOrientation(LinearLayout.VERTICAL);
+        telemetryCard.setPadding(dp(18), dp(14), dp(18), dp(14));
+        telemetryCard.setBackground(createCardBackground());
+        page.addView(telemetryCard, createCardParams());
 
-        TextView tvControlsTitle = new TextView(this);
-        tvControlsTitle.setText("🎮  CONTROLES Y ENTORNO");
-        tvControlsTitle.setTextColor(palette.accent);
-        tvControlsTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-        tvControlsTitle.setTypeface(Typeface.DEFAULT_BOLD);
-        tvControlsTitle.setPadding(0, 0, 0, dp(10));
-        controlsCard.addView(tvControlsTitle);
+        TextView tvTelTitle = new TextView(this);
+        tvTelTitle.setText("📊  RESUMEN DE CONFIGURACIÓN");
+        tvTelTitle.setTextColor(palette.accent);
+        tvTelTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        tvTelTitle.setTypeface(Typeface.DEFAULT_BOLD);
+        tvTelTitle.setPadding(0, 0, 0, dp(8));
+        telemetryCard.addView(tvTelTitle);
 
-        // Fila 1: Botones de acceso rápido (Personalizar posición HUD y Calibrar Mando)
-        LinearLayout quickActionRow = new LinearLayout(this);
-        quickActionRow.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout.LayoutParams quickActionRowLp = new LinearLayout.LayoutParams(
+        TextView tvTelDesc = new TextView(this);
+        tvTelDesc.setText("El motor táctico está optimizado para procesadores ARM64 y aceleración por GPU.");
+        tvTelDesc.setTextColor(palette.textSecondary);
+        tvTelDesc.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f);
+        tvTelDesc.setPadding(0, 0, 0, dp(10));
+        telemetryCard.addView(tvTelDesc);
+
+        LinearLayout quickNavRow = new LinearLayout(this);
+        quickNavRow.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams qnLp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        quickActionRowLp.bottomMargin = dp(12);
 
-        Button btnEditHud = new Button(this);
-        btnEditHud.setText("✏️  Personalizar posición HUD");
-        btnEditHud.setTextColor(palette.btnSecondaryText);
-        btnEditHud.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-        btnEditHud.setBackground(createButtonBackground(palette.btnSecondaryBg, 10));
-        LinearLayout.LayoutParams editHudLp = new LinearLayout.LayoutParams(0, dp(44), 1.0f);
-        editHudLp.rightMargin = dp(6);
-        btnEditHud.setOnClickListener(v -> {
+        Button btnGoGfx = new Button(this);
+        btnGoGfx.setText("📺  Ajustes Gráficos (FOV / AA)");
+        btnGoGfx.setTextColor(palette.btnSecondaryText);
+        btnGoGfx.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        btnGoGfx.setBackground(createButtonBackground(palette.btnSecondaryBg, 10));
+        LinearLayout.LayoutParams gfxBtnLp = new LinearLayout.LayoutParams(0, dp(42), 1.0f);
+        gfxBtnLp.rightMargin = dp(6);
+        btnGoGfx.setOnClickListener(v -> {
             hapticFeedback(v);
-            startActivity(new Intent(this, HudEditorActivity.class));
+            selectTab(1, true);
         });
-        quickActionRow.addView(btnEditHud, editHudLp);
+        quickNavRow.addView(btnGoGfx, gfxBtnLp);
 
-        Button btnCalibrateGamepad = new Button(this);
-        btnCalibrateGamepad.setText("🎮  Calibrar Mando");
-        btnCalibrateGamepad.setTextColor(palette.btnSecondaryText);
-        btnCalibrateGamepad.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-        btnCalibrateGamepad.setBackground(createButtonBackground(palette.btnSecondaryBg, 10));
-        LinearLayout.LayoutParams gamepadLp = new LinearLayout.LayoutParams(0, dp(44), 1.0f);
-        btnCalibrateGamepad.setOnClickListener(v -> {
+        Button btnGoCtrl = new Button(this);
+        btnGoCtrl.setText("🕹️  Configurar Controles & HUD");
+        btnGoCtrl.setTextColor(palette.btnSecondaryText);
+        btnGoCtrl.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        btnGoCtrl.setBackground(createButtonBackground(palette.btnSecondaryBg, 10));
+        LinearLayout.LayoutParams ctrlBtnLp = new LinearLayout.LayoutParams(0, dp(42), 1.0f);
+        btnGoCtrl.setOnClickListener(v -> {
             hapticFeedback(v);
-            checkGamepadCalibration();
+            selectTab(2, true);
         });
-        quickActionRow.addView(btnCalibrateGamepad, gamepadLp);
+        quickNavRow.addView(btnGoCtrl, ctrlBtnLp);
 
-        controlsCard.addView(quickActionRow, quickActionRowLp);
+        telemetryCard.addView(quickNavRow, qnLp);
+        return sv;
+    }
 
-        CheckBox cbOverlay = new CheckBox(this);
-        cbOverlay.setText("Botones virtuales en pantalla (HUD controller)");
-        cbOverlay.setTextColor(palette.textPrimary);
-        cbOverlay.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-        boolean overlayDisabled = touchPrefs.getBoolean("overlay-disabled", false);
-        cbOverlay.setChecked(!overlayDisabled);
-        cbOverlay.setOnCheckedChangeListener((btn, isChecked) -> {
-            hapticFeedback(btn);
-            touchPrefs.edit().putBoolean("overlay-disabled", !isChecked).apply();
-            Toast.makeText(this, isChecked ? "Controles táctiles activados" : "Controles táctiles desactivados", Toast.LENGTH_SHORT).show();
-        });
-        controlsCard.addView(cbOverlay);
+    // ==========================================
+    // TAB 2: GRÁFICOS (ENGINE & VIDEO CONFIG)
+    // ==========================================
+    private View buildPageGraphics() {
+        ScrollView sv = new ScrollView(this);
+        sv.setFillViewport(true);
+        LinearLayout page = new LinearLayout(this);
+        page.setOrientation(LinearLayout.VERTICAL);
+        sv.addView(page);
 
-        TextView tvOpacity = new TextView(this);
-        float currentOpacity = touchPrefs.getFloat("controls-opacity", 1.0f);
-        tvOpacity.setText("Opacidad de botones: " + (int)(currentOpacity * 100) + "%");
-        tvOpacity.setTextColor(palette.textSecondary);
-        tvOpacity.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-        tvOpacity.setPadding(0, dp(10), 0, dp(4));
-        controlsCard.addView(tvOpacity);
-
-        LinearLayout opacityRow = new LinearLayout(this);
-        opacityRow.setOrientation(LinearLayout.HORIZONTAL);
-        float[] opacityValues = { 0.4f, 0.6f, 0.8f, 1.0f };
-        String[] opacityLabels = { "40%", "60%", "80%", "100%" };
-        Button[] opacityButtons = new Button[opacityValues.length];
-        for (int i = 0; i < opacityValues.length; i++) {
-            final float val = opacityValues[i];
-            Button b = new Button(this);
-            b.setText(opacityLabels[i]);
-            b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(36), 1.0f);
-            if (i < opacityValues.length - 1) lp.rightMargin = dp(6);
-            opacityRow.addView(b, lp);
-            opacityButtons[i] = b;
-            b.setOnClickListener(v -> {
-                hapticFeedback(v);
-                touchPrefs.edit().putFloat("controls-opacity", val).apply();
-                tvOpacity.setText("Opacidad de botones: " + (int)(val * 100) + "%");
-                updateSelectorButtons(opacityButtons, opacityValues, val, 0.05f);
-                Toast.makeText(this, "Opacidad: " + (int)(val * 100) + "%", Toast.LENGTH_SHORT).show();
-            });
-        }
-        updateSelectorButtons(opacityButtons, opacityValues, currentOpacity, 0.05f);
-        controlsCard.addView(opacityRow);
-
-        TextView tvSens = new TextView(this);
-        float currentSens = touchPrefs.getFloat("look-sensitivity", 2.0f);
-        tvSens.setText("Sensibilidad de apuntado: " + String.format("%.1fx", currentSens));
-        tvSens.setTextColor(palette.textSecondary);
-        tvSens.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-        tvSens.setPadding(0, dp(10), 0, dp(2));
-        controlsCard.addView(tvSens);
-
-        // Barra deslizante continua de sensibilidad [═══════●════════]
-        SeekBar sbSens = new SeekBar(this);
-        sbSens.setMax(35); // 0.5x a 4.0x
-        int sensProgress = Math.round((currentSens - 0.5f) * 10f);
-        if (sensProgress < 0) sensProgress = 0;
-        if (sensProgress > 35) sensProgress = 35;
-        sbSens.setProgress(sensProgress);
-        LinearLayout.LayoutParams sbSensLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        sbSensLp.setMargins(0, dp(4), 0, dp(6));
-        controlsCard.addView(sbSens, sbSensLp);
-
-        LinearLayout sensRow = new LinearLayout(this);
-        sensRow.setOrientation(LinearLayout.HORIZONTAL);
-        float[] sensValues = { 1.0f, 1.5f, 2.0f, 3.0f };
-        String[] sensLabels = { "1.0x", "1.5x", "2.0x", "3.0x" };
-        Button[] sensButtons = new Button[sensValues.length];
-        for (int i = 0; i < sensValues.length; i++) {
-            final float val = sensValues[i];
-            Button b = new Button(this);
-            b.setText(sensLabels[i]);
-            b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(36), 1.0f);
-            if (i < sensValues.length - 1) lp.rightMargin = dp(6);
-            sensRow.addView(b, lp);
-            sensButtons[i] = b;
-            b.setOnClickListener(v -> {
-                hapticFeedback(v);
-                touchPrefs.edit().putFloat("look-sensitivity", val).apply();
-                tvSens.setText("Sensibilidad de apuntado: " + String.format("%.1fx", val));
-                int newProg = Math.round((val - 0.5f) * 10f);
-                sbSens.setProgress(newProg);
-                updateSelectorButtons(sensButtons, sensValues, val, 0.1f);
-                Toast.makeText(this, "Sensibilidad: " + val + "x", Toast.LENGTH_SHORT).show();
-            });
-        }
-        updateSelectorButtons(sensButtons, sensValues, currentSens, 0.1f);
-        controlsCard.addView(sensRow);
-
-        sbSens.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (fromUser) {
-                    float val = 0.5f + (progress / 10.0f);
-                    touchPrefs.edit().putFloat("look-sensitivity", val).apply();
-                    tvSens.setText("Sensibilidad de apuntado: " + String.format("%.1fx", val));
-                    updateSelectorButtons(sensButtons, sensValues, val, 0.1f);
-                }
-            }
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {}
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-                hapticFeedback(seekBar);
-            }
-        });
-
-        LinearLayout togglesRow = new LinearLayout(this);
-        togglesRow.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout.LayoutParams togglesRowLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        togglesRowLp.topMargin = dp(8);
-        togglesRowLp.bottomMargin = dp(4);
-        controlsCard.addView(togglesRow, togglesRowLp);
-
-        CheckBox cbGyro = new CheckBox(this);
-        cbGyro.setText("Giroscopio");
-        cbGyro.setTextColor(palette.textPrimary);
-        cbGyro.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-        cbGyro.setChecked(touchPrefs.getBoolean("gyroscope", false));
-        cbGyro.setOnCheckedChangeListener((btn, isChecked) -> {
-            hapticFeedback(btn);
-            touchPrefs.edit().putBoolean("gyroscope", isChecked).commit();
-        });
-        LinearLayout.LayoutParams gyroLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
-        togglesRow.addView(cbGyro, gyroLp);
-
-        CheckBox cbRumble = new CheckBox(this);
-        cbRumble.setText("Vibración");
-        cbRumble.setTextColor(palette.textPrimary);
-        cbRumble.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-        cbRumble.setChecked(touchPrefs.getBoolean("rumble", true));
-        cbRumble.setOnCheckedChangeListener((btn, isChecked) -> {
-            hapticFeedback(btn);
-            touchPrefs.edit().putBoolean("rumble", isChecked).commit();
-        });
-        LinearLayout.LayoutParams rumbleLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
-        togglesRow.addView(cbRumble, rumbleLp);
-
-        CheckBox cbFps = new CheckBox(this);
-        cbFps.setText("Contador FPS");
-        cbFps.setTextColor(palette.textPrimary);
-        cbFps.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-        cbFps.setChecked(touchPrefs.getBoolean("fps-counter", false));
-        cbFps.setOnCheckedChangeListener((btn, isChecked) -> {
-            hapticFeedback(btn);
-            touchPrefs.edit().putBoolean("fps-counter", isChecked).commit();
-        });
-        LinearLayout.LayoutParams fpsLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
-        togglesRow.addView(cbFps, fpsLp);
-
-        CheckBox cbFireHaptics = new CheckBox(this);
-        cbFireHaptics.setText("⚡  Vibración táctil al disparar (Retroceso de armas)");
-        cbFireHaptics.setTextColor(palette.textPrimary);
-        cbFireHaptics.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-        cbFireHaptics.setChecked(touchPrefs.getBoolean("fire-haptics", true));
-        cbFireHaptics.setOnCheckedChangeListener((btn, isChecked) -> {
-            hapticFeedback(btn);
-            touchPrefs.edit().putBoolean("fire-haptics", isChecked).commit();
-        });
-        controlsCard.addView(cbFireHaptics);
-
-        LinearLayout gyroSensContainer = new LinearLayout(this);
-        gyroSensContainer.setOrientation(LinearLayout.VERTICAL);
-        gyroSensContainer.setVisibility(cbGyro.isChecked() ? View.VISIBLE : View.GONE);
-        cbGyro.setOnCheckedChangeListener((btn, isChecked) -> {
-            hapticFeedback(btn);
-            touchPrefs.edit().putBoolean("gyroscope", isChecked).commit();
-            gyroSensContainer.setVisibility(isChecked ? View.VISIBLE : View.GONE);
-        });
-
-        TextView tvGyroSens = new TextView(this);
-        float currentGyroSens = touchPrefs.getFloat("gyro-sensitivity", 1.0f);
-        tvGyroSens.setText("Sensibilidad de giroscopio: " + String.format("%.1fx", currentGyroSens));
-        tvGyroSens.setTextColor(palette.textSecondary);
-        tvGyroSens.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-        tvGyroSens.setPadding(0, dp(6), 0, dp(4));
-        gyroSensContainer.addView(tvGyroSens);
-
-        LinearLayout gyroSensRow = new LinearLayout(this);
-        gyroSensRow.setOrientation(LinearLayout.HORIZONTAL);
-        float[] gyroValues = { 0.5f, 1.0f, 1.5f, 2.0f };
-        String[] gyroLabels = { "0.5x", "1.0x", "1.5x", "2.0x" };
-        Button[] gyroButtons = new Button[gyroValues.length];
-        for (int i = 0; i < gyroValues.length; i++) {
-            final float val = gyroValues[i];
-            Button b = new Button(this);
-            b.setText(gyroLabels[i]);
-            b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(34), 1.0f);
-            if (i < gyroValues.length - 1) lp.rightMargin = dp(6);
-            gyroSensRow.addView(b, lp);
-            gyroButtons[i] = b;
-            b.setOnClickListener(v -> {
-                hapticFeedback(v);
-                touchPrefs.edit().putFloat("gyro-sensitivity", val).commit();
-                tvGyroSens.setText("Sensibilidad de giroscopio: " + String.format("%.1fx", val));
-                updateSelectorButtons(gyroButtons, gyroValues, val, 0.1f);
-            });
-        }
-        updateSelectorButtons(gyroButtons, gyroValues, currentGyroSens, 0.1f);
-        gyroSensContainer.addView(gyroSensRow);
-        controlsCard.addView(gyroSensContainer);
-
-        Button btnResetControls = new Button(this);
-        btnResetControls.setText("↺  Restablecer posición de controles a fábrica");
-        btnResetControls.setTextColor(palette.btnSecondaryText);
-        btnResetControls.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-        btnResetControls.setBackground(createButtonBackground(palette.btnSecondaryBg, 10));
-        LinearLayout.LayoutParams resetLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, dp(40));
-        resetLp.topMargin = dp(10);
-        btnResetControls.setOnClickListener(v -> {
-            hapticFeedback(v);
-            confirmResetControls();
-        });
-        controlsCard.addView(btnResetControls, resetLp);
-
-        // --- Card 3: Graphics & Engine Performance ---
         LinearLayout graphicsCard = new LinearLayout(this);
         graphicsCard.setOrientation(LinearLayout.VERTICAL);
         graphicsCard.setPadding(dp(18), dp(16), dp(18), dp(16));
         graphicsCard.setBackground(createCardBackground());
-        root.addView(graphicsCard, cardParams);
+        page.addView(graphicsCard, createCardParams());
 
         TextView tvGfxTitle = new TextView(this);
-        tvGfxTitle.setText("📺  GRÁFICOS Y MOTOR (ENGINE)");
+        tvGfxTitle.setText("📺  MOTOR GRÁFICO Y RENDERIZADO");
         tvGfxTitle.setTextColor(palette.accent);
         tvGfxTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         tvGfxTitle.setTypeface(Typeface.DEFAULT_BOLD);
@@ -700,7 +659,7 @@ public class LauncherActivity extends Activity {
         LinearLayout fovRow = new LinearLayout(this);
         fovRow.setOrientation(LinearLayout.HORIZONTAL);
         float[] fovValues = { 70f, 80f, 90f, 100f };
-        String[] fovLabels = { "70° (Xbox)", "80°", "90° Táctico", "100° Amplio" };
+        String[] fovLabels = { "70° Clásico", "80°", "90° Táctico", "100° Amplio" };
         Button[] fovButtons = new Button[fovValues.length];
         for (int i = 0; i < fovValues.length; i++) {
             final float val = fovValues[i];
@@ -723,7 +682,7 @@ public class LauncherActivity extends Activity {
 
         // 2. Per-Pixel Lighting Checkbox
         CheckBox cbPerPixel = new CheckBox(this);
-        cbPerPixel.setText("💡  Iluminación por píxel (Modelos y armaduras suaves)");
+        cbPerPixel.setText("💡  Iluminación por píxel (Modelos 3D y armaduras suaves)");
         cbPerPixel.setTextColor(palette.textPrimary);
         cbPerPixel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         cbPerPixel.setPadding(0, dp(8), 0, dp(4));
@@ -799,7 +758,7 @@ public class LauncherActivity extends Activity {
         LinearLayout shadowRow = new LinearLayout(this);
         shadowRow.setOrientation(LinearLayout.HORIZONTAL);
         int[] shadowValues = { 128, 256, 512, 1024 };
-        String[] shadowLabels = { "128 (Xbox)", "256", "512 (HD)", "1024 (Ultra)" };
+        String[] shadowLabels = { "128 (Baja)", "256", "512 (HD)", "1024 (Ultra)" };
         Button[] shadowButtons = new Button[shadowValues.length];
         int currentShadow = EngineConfigManager.getShadowResolution(this);
         for (int i = 0; i < shadowValues.length; i++) {
@@ -841,16 +800,305 @@ public class LauncherActivity extends Activity {
             }
         }
         graphicsCard.addView(shadowRow);
+        return sv;
+    }
 
-        // --- Card 3: ISO & Language Management (GESTIÓN DE JUEGO) ---
+    // ==========================================
+    // TAB 3: CONTROLES (TOUCH, HUD & HAPTICS)
+    // ==========================================
+    private View buildPageControls() {
+        ScrollView sv = new ScrollView(this);
+        sv.setFillViewport(true);
+        LinearLayout page = new LinearLayout(this);
+        page.setOrientation(LinearLayout.VERTICAL);
+        sv.addView(page);
+
+        LinearLayout controlsCard = new LinearLayout(this);
+        controlsCard.setOrientation(LinearLayout.VERTICAL);
+        controlsCard.setPadding(dp(18), dp(16), dp(18), dp(16));
+        controlsCard.setBackground(createCardBackground());
+        page.addView(controlsCard, createCardParams());
+
+        TextView tvControlsTitle = new TextView(this);
+        tvControlsTitle.setText("🕹️  CONTROLES Y ENTORNO");
+        tvControlsTitle.setTextColor(palette.accent);
+        tvControlsTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        tvControlsTitle.setTypeface(Typeface.DEFAULT_BOLD);
+        tvControlsTitle.setPadding(0, 0, 0, dp(10));
+        controlsCard.addView(tvControlsTitle);
+
+        // Fila 1: Botones de acceso rápido (Personalizar posición HUD y Calibrar Mando)
+        LinearLayout quickActionRow = new LinearLayout(this);
+        quickActionRow.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams quickActionRowLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        quickActionRowLp.bottomMargin = dp(12);
+
+        Button btnEditHud = new Button(this);
+        btnEditHud.setText("✏️  Personalizar posición HUD");
+        btnEditHud.setTextColor(palette.btnSecondaryText);
+        btnEditHud.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        btnEditHud.setBackground(createButtonBackground(palette.btnSecondaryBg, 10));
+        LinearLayout.LayoutParams editHudLp = new LinearLayout.LayoutParams(0, dp(44), 1.0f);
+        editHudLp.rightMargin = dp(6);
+        btnEditHud.setOnClickListener(v -> {
+            hapticFeedback(v);
+            startActivity(new Intent(this, HudEditorActivity.class));
+        });
+        quickActionRow.addView(btnEditHud, editHudLp);
+
+        Button btnCalibrateGamepad = new Button(this);
+        btnCalibrateGamepad.setText("🎮  Calibrar Mando");
+        btnCalibrateGamepad.setTextColor(palette.btnSecondaryText);
+        btnCalibrateGamepad.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        btnCalibrateGamepad.setBackground(createButtonBackground(palette.btnSecondaryBg, 10));
+        LinearLayout.LayoutParams gamepadLp = new LinearLayout.LayoutParams(0, dp(44), 1.0f);
+        btnCalibrateGamepad.setOnClickListener(v -> {
+            hapticFeedback(v);
+            checkGamepadCalibration();
+        });
+        quickActionRow.addView(btnCalibrateGamepad, gamepadLp);
+
+        controlsCard.addView(quickActionRow, quickActionRowLp);
+
+        CheckBox cbOverlay = new CheckBox(this);
+        cbOverlay.setText("Botones virtuales en pantalla (HUD controller)");
+        cbOverlay.setTextColor(palette.textPrimary);
+        cbOverlay.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f);
+        boolean overlayDisabled = touchPrefs.getBoolean("overlay-disabled", false);
+        cbOverlay.setChecked(!overlayDisabled);
+        cbOverlay.setOnCheckedChangeListener((btn, isChecked) -> {
+            hapticFeedback(btn);
+            touchPrefs.edit().putBoolean("overlay-disabled", !isChecked).apply();
+            Toast.makeText(this, isChecked ? "Controles táctiles activados" : "Controles táctiles desactivados", Toast.LENGTH_SHORT).show();
+        });
+        controlsCard.addView(cbOverlay);
+
+        TextView tvOpacity = new TextView(this);
+        float currentOpacity = touchPrefs.getFloat("controls-opacity", 1.0f);
+        tvOpacity.setText("Opacidad de botones: " + (int)(currentOpacity * 100) + "%");
+        tvOpacity.setTextColor(palette.textSecondary);
+        tvOpacity.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        tvOpacity.setPadding(0, dp(10), 0, dp(4));
+        controlsCard.addView(tvOpacity);
+
+        LinearLayout opacityRow = new LinearLayout(this);
+        opacityRow.setOrientation(LinearLayout.HORIZONTAL);
+        float[] opacityValues = { 0.4f, 0.6f, 0.8f, 1.0f };
+        String[] opacityLabels = { "40%", "60%", "80%", "100%" };
+        Button[] opacityButtons = new Button[opacityValues.length];
+        for (int i = 0; i < opacityValues.length; i++) {
+            final float val = opacityValues[i];
+            Button b = new Button(this);
+            b.setText(opacityLabels[i]);
+            b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(36), 1.0f);
+            if (i < opacityValues.length - 1) lp.rightMargin = dp(6);
+            opacityRow.addView(b, lp);
+            opacityButtons[i] = b;
+            b.setOnClickListener(v -> {
+                hapticFeedback(v);
+                touchPrefs.edit().putFloat("controls-opacity", val).apply();
+                tvOpacity.setText("Opacidad de botones: " + (int)(val * 100) + "%");
+                updateSelectorButtons(opacityButtons, opacityValues, val, 0.05f);
+                Toast.makeText(this, "Opacidad: " + (int)(val * 100) + "%", Toast.LENGTH_SHORT).show();
+            });
+        }
+        updateSelectorButtons(opacityButtons, opacityValues, currentOpacity, 0.05f);
+        controlsCard.addView(opacityRow);
+
+        TextView tvSens = new TextView(this);
+        float currentSens = touchPrefs.getFloat("look-sensitivity", 2.0f);
+        tvSens.setText("Sensibilidad de apuntado: " + String.format("%.1fx", currentSens));
+        tvSens.setTextColor(palette.textSecondary);
+        tvSens.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        tvSens.setPadding(0, dp(10), 0, dp(2));
+        controlsCard.addView(tvSens);
+
+        // Barra deslizante continua de sensibilidad
+        SeekBar sbSens = new SeekBar(this);
+        sbSens.setMax(35); // 0.5x a 4.0x
+        int sensProgress = Math.round((currentSens - 0.5f) * 10f);
+        if (sensProgress < 0) sensProgress = 0;
+        if (sensProgress > 35) sensProgress = 35;
+        sbSens.setProgress(sensProgress);
+        LinearLayout.LayoutParams sbSensLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        sbSensLp.setMargins(0, dp(4), 0, dp(6));
+        controlsCard.addView(sbSens, sbSensLp);
+
+        LinearLayout sensRow = new LinearLayout(this);
+        sensRow.setOrientation(LinearLayout.HORIZONTAL);
+        float[] sensValues = { 1.0f, 1.5f, 2.0f, 3.0f };
+        String[] sensLabels = { "1.0x", "1.5x", "2.0x", "3.0x" };
+        Button[] sensButtons = new Button[sensValues.length];
+        for (int i = 0; i < sensValues.length; i++) {
+            final float val = sensValues[i];
+            Button b = new Button(this);
+            b.setText(sensLabels[i]);
+            b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(36), 1.0f);
+            if (i < sensValues.length - 1) lp.rightMargin = dp(6);
+            sensRow.addView(b, lp);
+            sensButtons[i] = b;
+            b.setOnClickListener(v -> {
+                hapticFeedback(v);
+                touchPrefs.edit().putFloat("look-sensitivity", val).apply();
+                tvSens.setText("Sensibilidad de apuntado: " + String.format("%.1fx", val));
+                int newProg = Math.round((val - 0.5f) * 10f);
+                sbSens.setProgress(newProg);
+                updateSelectorButtons(sensButtons, sensValues, val, 0.1f);
+                Toast.makeText(this, "Sensibilidad: " + val + "x", Toast.LENGTH_SHORT).show();
+            });
+        }
+        updateSelectorButtons(sensButtons, sensValues, currentSens, 0.1f);
+        controlsCard.addView(sensRow);
+
+        sbSens.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (fromUser) {
+                    float val = 0.5f + (progress / 10.0f);
+                    touchPrefs.edit().putFloat("look-sensitivity", val).apply();
+                    tvSens.setText("Sensibilidad de apuntado: " + String.format("%.1fx", val));
+                    updateSelectorButtons(sensButtons, sensValues, val, 0.1f);
+                }
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) { hapticFeedback(seekBar); }
+        });
+
+        LinearLayout togglesRow = new LinearLayout(this);
+        togglesRow.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams togglesRowLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        togglesRowLp.topMargin = dp(8);
+        togglesRowLp.bottomMargin = dp(4);
+        controlsCard.addView(togglesRow, togglesRowLp);
+
+        CheckBox cbGyro = new CheckBox(this);
+        cbGyro.setText("Giroscopio");
+        cbGyro.setTextColor(palette.textPrimary);
+        cbGyro.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        cbGyro.setChecked(touchPrefs.getBoolean("gyroscope", false));
+        LinearLayout.LayoutParams gyroLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+        togglesRow.addView(cbGyro, gyroLp);
+
+        CheckBox cbRumble = new CheckBox(this);
+        cbRumble.setText("Vibración");
+        cbRumble.setTextColor(palette.textPrimary);
+        cbRumble.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        cbRumble.setChecked(touchPrefs.getBoolean("rumble", true));
+        cbRumble.setOnCheckedChangeListener((btn, isChecked) -> {
+            hapticFeedback(btn);
+            touchPrefs.edit().putBoolean("rumble", isChecked).commit();
+        });
+        LinearLayout.LayoutParams rumbleLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+        togglesRow.addView(cbRumble, rumbleLp);
+
+        CheckBox cbFps = new CheckBox(this);
+        cbFps.setText("Contador FPS");
+        cbFps.setTextColor(palette.textPrimary);
+        cbFps.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        cbFps.setChecked(touchPrefs.getBoolean("fps-counter", false));
+        cbFps.setOnCheckedChangeListener((btn, isChecked) -> {
+            hapticFeedback(btn);
+            touchPrefs.edit().putBoolean("fps-counter", isChecked).commit();
+        });
+        LinearLayout.LayoutParams fpsLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+        togglesRow.addView(cbFps, fpsLp);
+
+        // Weapon Fire Haptics Checkbox
+        CheckBox cbFireHaptics = new CheckBox(this);
+        cbFireHaptics.setText("⚡  Vibración táctil al disparar (Retroceso de armas)");
+        cbFireHaptics.setTextColor(palette.textPrimary);
+        cbFireHaptics.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        cbFireHaptics.setChecked(touchPrefs.getBoolean("fire-haptics", true));
+        cbFireHaptics.setOnCheckedChangeListener((btn, isChecked) -> {
+            hapticFeedback(btn);
+            touchPrefs.edit().putBoolean("fire-haptics", isChecked).commit();
+        });
+        controlsCard.addView(cbFireHaptics);
+
+        // Gyroscope Sensitivity Container
+        LinearLayout gyroSensContainer = new LinearLayout(this);
+        gyroSensContainer.setOrientation(LinearLayout.VERTICAL);
+        gyroSensContainer.setVisibility(cbGyro.isChecked() ? View.VISIBLE : View.GONE);
+        cbGyro.setOnCheckedChangeListener((btn, isChecked) -> {
+            hapticFeedback(btn);
+            touchPrefs.edit().putBoolean("gyroscope", isChecked).commit();
+            gyroSensContainer.setVisibility(isChecked ? View.VISIBLE : View.GONE);
+        });
+
+        TextView tvGyroSens = new TextView(this);
+        float currentGyroSens = touchPrefs.getFloat("gyro-sensitivity", 1.0f);
+        tvGyroSens.setText("Sensibilidad de giroscopio: " + String.format("%.1fx", currentGyroSens));
+        tvGyroSens.setTextColor(palette.textSecondary);
+        tvGyroSens.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        tvGyroSens.setPadding(0, dp(6), 0, dp(4));
+        gyroSensContainer.addView(tvGyroSens);
+
+        LinearLayout gyroSensRow = new LinearLayout(this);
+        gyroSensRow.setOrientation(LinearLayout.HORIZONTAL);
+        float[] gyroValues = { 0.5f, 1.0f, 1.5f, 2.0f };
+        String[] gyroLabels = { "0.5x", "1.0x", "1.5x", "2.0x" };
+        Button[] gyroButtons = new Button[gyroValues.length];
+        for (int i = 0; i < gyroValues.length; i++) {
+            final float val = gyroValues[i];
+            Button b = new Button(this);
+            b.setText(gyroLabels[i]);
+            b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(34), 1.0f);
+            if (i < gyroValues.length - 1) lp.rightMargin = dp(6);
+            gyroSensRow.addView(b, lp);
+            gyroButtons[i] = b;
+            b.setOnClickListener(v -> {
+                hapticFeedback(v);
+                touchPrefs.edit().putFloat("gyro-sensitivity", val).commit();
+                tvGyroSens.setText("Sensibilidad de giroscopio: " + String.format("%.1fx", val));
+                updateSelectorButtons(gyroButtons, gyroValues, val, 0.1f);
+            });
+        }
+        updateSelectorButtons(gyroButtons, gyroValues, currentGyroSens, 0.1f);
+        gyroSensContainer.addView(gyroSensRow);
+        controlsCard.addView(gyroSensContainer);
+
+        Button btnResetControls = new Button(this);
+        btnResetControls.setText("↺  Restablecer posición de controles a fábrica");
+        btnResetControls.setTextColor(palette.btnSecondaryText);
+        btnResetControls.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        btnResetControls.setBackground(createButtonBackground(palette.btnSecondaryBg, 10));
+        LinearLayout.LayoutParams resetLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(40));
+        resetLp.topMargin = dp(10);
+        btnResetControls.setOnClickListener(v -> {
+            hapticFeedback(v);
+            confirmResetControls();
+        });
+        controlsCard.addView(btnResetControls, resetLp);
+
+        return sv;
+    }
+
+    // ==========================================
+    // TAB 4: SISTEMA (ISO, STORAGE & COMMUNITY)
+    // ==========================================
+    private View buildPageSystem() {
+        ScrollView sv = new ScrollView(this);
+        sv.setFillViewport(true);
+        LinearLayout page = new LinearLayout(this);
+        page.setOrientation(LinearLayout.VERTICAL);
+        sv.addView(page);
+
+        // ISO & Language Management Card
         LinearLayout isoCard = new LinearLayout(this);
         isoCard.setOrientation(LinearLayout.VERTICAL);
         isoCard.setPadding(dp(18), dp(16), dp(18), dp(16));
         isoCard.setBackground(createCardBackground());
-        root.addView(isoCard, cardParams);
+        page.addView(isoCard, createCardParams());
 
         TextView tvIsoTitle = new TextView(this);
-        tvIsoTitle.setText("💿  GESTIÓN DE JUEGO");
+        tvIsoTitle.setText("💿  GESTIÓN DE JUEGO Y ARCHIVOS");
         tvIsoTitle.setTextColor(palette.accent);
         tvIsoTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         tvIsoTitle.setTypeface(Typeface.DEFAULT_BOLD);
@@ -864,7 +1112,6 @@ public class LauncherActivity extends Activity {
         tvIsoDesc.setPadding(0, 0, 0, dp(12));
         isoCard.addView(tvIsoDesc);
 
-        // Fila de Gestión: [Cambiar Idioma / ISO]   [Comprobar Integridad]
         LinearLayout isoActionRow = new LinearLayout(this);
         isoActionRow.setOrientation(LinearLayout.HORIZONTAL);
         LinearLayout.LayoutParams isoActionRowLp = new LinearLayout.LayoutParams(
@@ -911,12 +1158,12 @@ public class LauncherActivity extends Activity {
         });
         isoCard.addView(btnClearData, clearLp);
 
-        // --- Card 4: Official Community & Repo Card ---
+        // Community & GitHub Card
         LinearLayout footerCard = new LinearLayout(this);
         footerCard.setOrientation(LinearLayout.VERTICAL);
         footerCard.setPadding(dp(18), dp(16), dp(18), dp(16));
         footerCard.setBackground(createCardBackground());
-        root.addView(footerCard, cardParams);
+        page.addView(footerCard, createCardParams());
 
         TextView tvFooterTitle = new TextView(this);
         tvFooterTitle.setText("SPARTAN CE • MOBILE EDITION");
@@ -947,7 +1194,10 @@ public class LauncherActivity extends Activity {
         });
         footerCard.addView(btnGithub, ghLp);
 
-        setContentView(scrollView);
+        // [FUTURE_EXTENSION]: Cloudflare Workers / Free API integration space for community maps & comments.
+        // Ready for lightweight HTTP GET / POST endpoints with rate limiting & caching.
+
+        return sv;
     }
 
     private void chooseIsoImage() {
@@ -973,7 +1223,7 @@ public class LauncherActivity extends Activity {
         if (ready) {
             btnLaunch.setText("▶  INICIAR SPARTAN CE");
             btnLaunch.setTextColor(Color.rgb(10, 13, 20));
-            btnLaunch.setBackground(createGradientButton(Color.rgb(0, 229, 255), Color.rgb(2, 132, 199), 14));
+            btnLaunch.setBackground(createGradientButton(Color.rgb(56, 189, 248), Color.rgb(14, 165, 233), 14));
             btnLaunch.setOnClickListener(v -> {
                 hapticFeedback(v);
                 startGame();
@@ -986,6 +1236,10 @@ public class LauncherActivity extends Activity {
                 hapticFeedback(v);
                 chooseIsoImage();
             });
+        }
+
+        if (btnPickIso != null) {
+            btnPickIso.setText(ready ? "🌐  Cambiar Idioma / ISO" : "📂  Seleccionar ISO");
         }
     }
 
@@ -1003,7 +1257,7 @@ public class LauncherActivity extends Activity {
                 }
                 editor.commit();
 
-                // Terminate any background HaloActivity instance so it recreates with pristine factory defaults
+                // Terminate background HaloActivity instance so it recreates with pristine defaults
                 if (HaloActivity.instance != null) {
                     HaloActivity.instance.finish();
                 }
@@ -1096,7 +1350,7 @@ public class LauncherActivity extends Activity {
                 .setTitle("✅ Integridad verificada al 100%")
                 .setMessage("Todos los archivos esenciales han sido comprobados con éxito:\n\n"
                     + "• ui.map (Menú e interfaz): " + String.format("%.1f MB", uiMap.length() / (1024.0 * 1024.0)) + " (Íntegro)\n"
-                    + "• Mapas detectados: " + mapCount + " niveles de campaña y multijugador\n"
+                    + "• Mapas detectados: " + mapCount + " niveles instalados\n"
                     + "• Espacio ocupado: " + totalMb + " MB\n"
                     + "• Estado del motor: Listo para jugar sin errores.")
                 .setPositiveButton("Excelente", null)
@@ -1145,9 +1399,10 @@ public class LauncherActivity extends Activity {
         if (requestCode != PICK_IMAGE || resultCode != RESULT_OK || data == null || data.getData() == null)
             return;
         pendingIsoUri = data.getData();
-        btnPickIso.setEnabled(false);
-        progressBar.setVisibility(View.VISIBLE);
-        statusText.setText("Analizando imagen ISO y detectando idiomas...");
+        if (btnPickIso != null) btnPickIso.setEnabled(false);
+        selectTab(0, true); // Automatically switch to JUGAR tab to show progress bar
+        if (progressBar != null) progressBar.setVisibility(View.VISIBLE);
+        if (statusText != null) statusText.setText("Analizando imagen ISO y detectando idiomas...");
 
         new Thread(this::inspectIsoLanguages).start();
     }
@@ -1182,8 +1437,8 @@ public class LauncherActivity extends Activity {
     }
 
     private void showLanguageSelectionDialog(List<XisoExtractor.LanguageEntry> languages) {
-        progressBar.setVisibility(View.GONE);
-        statusText.setText("Selecciona el idioma a instalar:");
+        if (progressBar != null) progressBar.setVisibility(View.GONE);
+        if (statusText != null) statusText.setText("Selecciona el idioma a instalar:");
 
         String[] displayNames = new String[languages.size()];
         int defaultSelection = 0;
@@ -1215,10 +1470,10 @@ public class LauncherActivity extends Activity {
     }
 
     private void startExtraction(XisoExtractor.LanguageEntry language) {
-        btnPickIso.setEnabled(false);
-        btnLaunch.setEnabled(false);
-        progressBar.setVisibility(View.VISIBLE);
-        statusText.setText("Iniciando extracción de " + language.displayName + "...");
+        if (btnPickIso != null) btnPickIso.setEnabled(false);
+        if (btnLaunch != null) btnLaunch.setEnabled(false);
+        if (progressBar != null) progressBar.setVisibility(View.VISIBLE);
+        if (statusText != null) statusText.setText("Iniciando extracción de " + language.displayName + "...");
 
         new Thread(() -> {
             try (ParcelFileDescriptor descriptor = getContentResolver().openFileDescriptor(pendingIsoUri, "r")) {
@@ -1237,11 +1492,11 @@ public class LauncherActivity extends Activity {
                 hubPrefs.edit().putString("installed_language", language.displayName).apply();
 
                 handler.post(() -> {
-                    progressBar.setVisibility(View.GONE);
-                    btnPickIso.setEnabled(true);
+                    if (progressBar != null) progressBar.setVisibility(View.GONE);
+                    if (btnPickIso != null) btnPickIso.setEnabled(true);
                     updateStatusUI();
-                    statusText.setText("¡Instalación completada con éxito!");
-                    tvInstalledLang.setText("Idioma actual: " + language.displayName);
+                    if (statusText != null) statusText.setText("¡Instalación completada con éxito!");
+                    if (tvInstalledLang != null) tvInstalledLang.setText("Idioma actual: " + language.displayName);
                     Toast.makeText(this, "Datos instalados correctamente en " + language.displayName, Toast.LENGTH_LONG).show();
 
                     new AlertDialog.Builder(this)
@@ -1259,18 +1514,20 @@ public class LauncherActivity extends Activity {
 
     private void report(String text, int permille) {
         handler.post(() -> {
-            statusText.setText(text);
-            if (permille >= 0)
+            if (statusText != null) statusText.setText(text);
+            if (permille >= 0 && progressBar != null)
                 progressBar.setProgress(permille);
         });
     }
 
     private void fail(String text) {
         handler.post(() -> {
-            statusText.setText(text);
-            progressBar.setVisibility(View.GONE);
-            btnPickIso.setEnabled(true);
-            btnPickIso.requestFocus();
+            if (statusText != null) statusText.setText(text);
+            if (progressBar != null) progressBar.setVisibility(View.GONE);
+            if (btnPickIso != null) {
+                btnPickIso.setEnabled(true);
+                btnPickIso.requestFocus();
+            }
         });
     }
 }
