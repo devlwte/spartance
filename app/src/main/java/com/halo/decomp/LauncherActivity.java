@@ -26,6 +26,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -41,6 +42,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.channels.FileChannel;
 import java.util.List;
 
@@ -84,11 +87,42 @@ public class LauncherActivity extends Activity {
     private View[] menuAccents;
     private TextView[] menuLabels;
 
+    public static final String DEFAULT_URL_UPDATES_JSON = "https://raw.githubusercontent.com/devlwte/spartance/main/updates.json";
+    public static final String DEFAULT_URL_MOTD_JSON = "https://raw.githubusercontent.com/devlwte/spartance/main/motd.json";
+    public static final String DEFAULT_URL_COMMANDS_JSON = "https://raw.githubusercontent.com/devlwte/spartance/main/commands.json";
+    public static final String DEFAULT_URL_GITHUB_REPO = "https://github.com/devlwte/spartance";
+
+    public static final String KEY_URL_UPDATES = "pref_url_updates_json";
+    public static final String KEY_URL_MOTD = "pref_url_motd_json";
+    public static final String KEY_URL_COMMANDS = "pref_url_commands_json";
+    public static final String KEY_URL_REPO = "pref_url_github_repo";
+
+    public static String getUpdatesUrl(Context context) {
+        return context.getSharedPreferences(PREFS_HUB, Context.MODE_PRIVATE)
+            .getString(KEY_URL_UPDATES, DEFAULT_URL_UPDATES_JSON);
+    }
+
+    public static String getMotdUrl(Context context) {
+        return context.getSharedPreferences(PREFS_HUB, Context.MODE_PRIVATE)
+            .getString(KEY_URL_MOTD, DEFAULT_URL_MOTD_JSON);
+    }
+
+    public static String getCommandsUrl(Context context) {
+        return context.getSharedPreferences(PREFS_HUB, Context.MODE_PRIVATE)
+            .getString(KEY_URL_COMMANDS, DEFAULT_URL_COMMANDS_JSON);
+    }
+
+    public static String getRepoUrl(Context context) {
+        return context.getSharedPreferences(PREFS_HUB, Context.MODE_PRIVATE)
+            .getString(KEY_URL_REPO, DEFAULT_URL_GITHUB_REPO);
+    }
+
     private final String[] TAB_TITLES = {
         "CAMPAÑA / JUGAR",
         "CONFIGURACIÓN GRÁFICA",
         "CONTROLES Y HUD",
         "SISTEMA Y ARCHIVOS",
+        "AJUSTES Y RUTAS",
         "INFORMACIÓN Y ESTADO"
     };
 
@@ -97,6 +131,7 @@ public class LauncherActivity extends Activity {
         "Ajusta el campo de visión (FOV), sombreado por píxel, anti-aliasing y sombras dinámicas.",
         "Personaliza la distribución táctil, calibración de mandos, giroscopio y retroceso háptico.",
         "Administra archivos de juego ISO, verifica integridad de datos y limpia almacenamiento.",
+        "Personaliza rutas dinámicas de red, repositorio y fuentes de datos JSON.",
         "Consulta la telemetría del hardware, versión del motor, requisitos y especificaciones técnicas."
     };
 
@@ -365,7 +400,7 @@ public class LauncherActivity extends Activity {
         // 3. Main Content Hierarchy
         LinearLayout mainContent = new LinearLayout(this);
         mainContent.setOrientation(LinearLayout.VERTICAL);
-        mainContent.setPadding(dp(24), dp(12), dp(24), dp(8));
+        mainContent.setPadding(dp(20), dp(8), dp(20), dp(4));
         rootFrame.addView(mainContent, new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
@@ -373,7 +408,7 @@ public class LauncherActivity extends Activity {
         LinearLayout headerRow = new LinearLayout(this);
         headerRow.setOrientation(LinearLayout.HORIZONTAL);
         headerRow.setGravity(Gravity.CENTER_VERTICAL);
-        headerRow.setPadding(0, 0, 0, dp(14));
+        headerRow.setPadding(0, 0, 0, dp(8));
         mainContent.addView(headerRow);
 
         // Left Branding (M6D Emblem + Title)
@@ -384,11 +419,11 @@ public class LauncherActivity extends Activity {
 
         ImageView ivLogo = new ImageView(this);
         ivLogo.setImageResource(R.drawable.m6d_emblem);
-        int logoSize = dp(36);
+        int logoSize = dp(32);
         LinearLayout.LayoutParams logoLp = new LinearLayout.LayoutParams(logoSize, logoSize);
-        logoLp.rightMargin = dp(12);
+        logoLp.rightMargin = dp(10);
         ivLogo.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        ivLogo.setPadding(dp(3), dp(3), dp(3), dp(3));
+        ivLogo.setPadding(dp(2.5f), dp(2.5f), dp(2.5f), dp(2.5f));
         GradientDrawable logoBg = new GradientDrawable();
         logoBg.setCornerRadius(dp(2));
         logoBg.setColor(Color.argb(200, 10, 16, 26));
@@ -403,7 +438,7 @@ public class LauncherActivity extends Activity {
         TextView tvTitle = new TextView(this);
         tvTitle.setText("SPARTAN CE");
         tvTitle.setTextColor(palette.textPrimary);
-        tvTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
+        tvTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 19);
         tvTitle.setTypeface(Typeface.create("sans-serif-condensed", Typeface.BOLD));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             tvTitle.setLetterSpacing(0.08f);
@@ -413,7 +448,7 @@ public class LauncherActivity extends Activity {
         TextView tvSubtitle = new TextView(this);
         tvSubtitle.setText(MotdManager.getCurrentMessage(this));
         tvSubtitle.setTextColor(palette.accent);
-        tvSubtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
+        tvSubtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f);
         tvSubtitle.setTypeface(Typeface.create("sans-serif-condensed", Typeface.NORMAL));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             tvSubtitle.setLetterSpacing(0.06f);
@@ -425,15 +460,29 @@ public class LauncherActivity extends Activity {
         bodyRow.setOrientation(LinearLayout.HORIZONTAL);
         LinearLayout.LayoutParams bodyLp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, 0, 1.0f);
-        bodyLp.setMargins(0, dp(6), 0, dp(4));
+        bodyLp.setMargins(0, dp(2), 0, dp(2));
         mainContent.addView(bodyRow, bodyLp);
 
-        // Left Navigation Column (MCC Style)
+        // Left Navigation Column (MCC Style) with Hidden ScrollView
         LinearLayout leftNavCol = new LinearLayout(this);
         leftNavCol.setOrientation(LinearLayout.VERTICAL);
-        leftNavCol.setPadding(0, dp(4), 0, dp(4));
+        leftNavCol.setPadding(0, dp(2), 0, dp(2));
         LinearLayout.LayoutParams leftColLp = new LinearLayout.LayoutParams(dp(240), ViewGroup.LayoutParams.MATCH_PARENT);
         bodyRow.addView(leftNavCol, leftColLp);
+
+        // Scrollable container for menu items to prevent overflow on lower resolution or split screens
+        ScrollView menuScrollView = new ScrollView(this);
+        menuScrollView.setFillViewport(true);
+        menuScrollView.setVerticalScrollBarEnabled(false);
+        menuScrollView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        LinearLayout.LayoutParams scrollLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1.0f);
+        leftNavCol.addView(menuScrollView, scrollLp);
+
+        LinearLayout menuContainer = new LinearLayout(this);
+        menuContainer.setOrientation(LinearLayout.VERTICAL);
+        menuScrollView.addView(menuContainer, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         menuRows = new LinearLayout[TAB_TITLES.length];
         menuAccents = new View[TAB_TITLES.length];
@@ -445,8 +494,8 @@ public class LauncherActivity extends Activity {
             itemRow.setOrientation(LinearLayout.HORIZONTAL);
             itemRow.setGravity(Gravity.CENTER_VERTICAL);
             LinearLayout.LayoutParams itemLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(38));
-            itemLp.bottomMargin = dp(4);
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(32));
+            itemLp.bottomMargin = dp(2);
 
             View accentBar = new View(this);
             LinearLayout.LayoutParams barLp = new LinearLayout.LayoutParams(dp(3.5f), ViewGroup.LayoutParams.MATCH_PARENT);
@@ -454,12 +503,12 @@ public class LauncherActivity extends Activity {
 
             TextView tvLabel = new TextView(this);
             tvLabel.setText(TAB_TITLES[i]);
-            tvLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f);
+            tvLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
             tvLabel.setTypeface(Typeface.create("sans-serif-condensed", Typeface.BOLD));
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 tvLabel.setLetterSpacing(0.08f);
             }
-            tvLabel.setPadding(dp(14), 0, dp(12), 0);
+            tvLabel.setPadding(dp(12), 0, dp(10), 0);
             itemRow.addView(tvLabel, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
 
             itemRow.setOnClickListener(v -> {
@@ -467,22 +516,19 @@ public class LauncherActivity extends Activity {
                 selectTab(index, true);
             });
 
-            leftNavCol.addView(itemRow, itemLp);
+            menuContainer.addView(itemRow, itemLp);
             menuRows[i] = itemRow;
             menuAccents[i] = accentBar;
             menuLabels[i] = tvLabel;
         }
 
-        // Flexible spacer before Exit button
-        View menuSpacer = new View(this);
-        leftNavCol.addView(menuSpacer, new LinearLayout.LayoutParams(0, 0, 1.0f));
-
-        // MCC-style Quit Button
+        // MCC-style Quit Button pinned at bottom of left column
         LinearLayout exitRow = new LinearLayout(this);
         exitRow.setOrientation(LinearLayout.HORIZONTAL);
         exitRow.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams exitLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, dp(38));
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(32));
+        exitLp.topMargin = dp(2);
         exitRow.setBackground(createMenuInactiveDrawable());
 
         View exitAccent = new View(this);
@@ -492,7 +538,7 @@ public class LauncherActivity extends Activity {
         TextView tvExit = new TextView(this);
         tvExit.setText("SALIR DEL JUEGO");
         tvExit.setTextColor(Color.rgb(190, 85, 85));
-        tvExit.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        tvExit.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         tvExit.setTypeface(Typeface.create("sans-serif-condensed", Typeface.BOLD));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             tvExit.setLetterSpacing(0.08f);
@@ -534,12 +580,13 @@ public class LauncherActivity extends Activity {
         rightPanelContainer.addView(pageContainer, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-        pages = new View[5];
+        pages = new View[6];
         pages[0] = buildPagePlay();
         pages[1] = buildPageGraphics();
         pages[2] = buildPageControls();
         pages[3] = buildPageSystem();
-        pages[4] = buildPageInfo();
+        pages[4] = buildPageSettings();
+        pages[5] = buildPageInfo();
 
         for (int i = 0; i < pages.length; i++) {
             pages[i].setVisibility(i == activeTab ? View.VISIBLE : View.GONE);
@@ -1350,7 +1397,7 @@ public class LauncherActivity extends Activity {
             ViewGroup.LayoutParams.MATCH_PARENT, dp(40));
         btnGithub.setOnClickListener(v -> {
             hapticFeedback(v);
-            Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/devlwte/spartance"));
+            Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(getRepoUrl(this)));
             startActivity(browserIntent);
         });
         page.addView(btnGithub, ghLp);
@@ -1361,7 +1408,226 @@ public class LauncherActivity extends Activity {
     }
 
     // ==========================================
-    // TAB 5: INFORMACIÓN Y ESTADO DEL SISTEMA
+    // TAB 5: AJUSTES Y RUTAS (JSON & REPO CONFIG)
+    // ==========================================
+    private View buildPageSettings() {
+        ScrollView sv = new ScrollView(this);
+        configureTacticalScrollView(sv);
+        LinearLayout page = new LinearLayout(this);
+        page.setOrientation(LinearLayout.VERTICAL);
+        sv.addView(page);
+
+        // Header Title
+        TextView tvSettingsHeader = new TextView(this);
+        tvSettingsHeader.setText("CONFIGURACIÓN DE SERVICIOS Y RED");
+        tvSettingsHeader.setTextColor(palette.accent);
+        tvSettingsHeader.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        tvSettingsHeader.setTypeface(Typeface.create("sans-serif-condensed", Typeface.BOLD));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            tvSettingsHeader.setLetterSpacing(0.08f);
+        }
+        page.addView(tvSettingsHeader);
+
+        TextView tvSettingsTitle = new TextView(this);
+        tvSettingsTitle.setText("RUTAS Y REPOSITORIOS JSON");
+        tvSettingsTitle.setTextColor(palette.textPrimary);
+        tvSettingsTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+        tvSettingsTitle.setTypeface(Typeface.create("sans-serif-condensed", Typeface.BOLD));
+        tvSettingsTitle.setPadding(0, dp(2), 0, dp(4));
+        page.addView(tvSettingsTitle);
+
+        TextView tvSettingsDesc = new TextView(this);
+        tvSettingsDesc.setText("Personaliza las direcciones remotas para consultar actualizaciones, anuncios comunitarios y comandos sin recompilar el APK.");
+        tvSettingsDesc.setTextColor(palette.textSecondary);
+        tvSettingsDesc.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f);
+        tvSettingsDesc.setPadding(0, 0, 0, dp(14));
+        page.addView(tvSettingsDesc);
+
+        // Card 1: Rutas de Sincronización Remota
+        LinearLayout cardRoutes = createInfoCard("DIRECCIONES DE SINCRONIZACIÓN REMOTA");
+
+        addRouteLabel(cardRoutes, "URL DE ACTUALIZACIONES (updates.json):");
+        EditText etUpdates = createTacticalEditText(getUpdatesUrl(this), "https://.../updates.json");
+        cardRoutes.addView(etUpdates);
+        addTestConnectionRow(cardRoutes, etUpdates);
+
+        addRouteLabel(cardRoutes, "URL DE MENSAJES MOTD (motd.json):");
+        EditText etMotd = createTacticalEditText(getMotdUrl(this), "https://.../motd.json");
+        cardRoutes.addView(etMotd);
+        addTestConnectionRow(cardRoutes, etMotd);
+
+        addRouteLabel(cardRoutes, "URL DE COMANDOS DE CONSOLA (commands.json):");
+        EditText etCommands = createTacticalEditText(getCommandsUrl(this), "https://.../commands.json");
+        cardRoutes.addView(etCommands);
+        addTestConnectionRow(cardRoutes, etCommands);
+
+        addRouteLabel(cardRoutes, "URL DEL REPOSITORIO DE GITHUB:");
+        EditText etRepo = createTacticalEditText(getRepoUrl(this), "https://github.com/...");
+        cardRoutes.addView(etRepo);
+
+        page.addView(cardRoutes);
+
+        // Action Buttons Row (Guardar / Restablecer)
+        LinearLayout actionsRow = new LinearLayout(this);
+        actionsRow.setOrientation(LinearLayout.HORIZONTAL);
+        actionsRow.setPadding(0, dp(6), 0, dp(16));
+
+        Button btnSave = new Button(this);
+        btnSave.setText("💾  GUARDAR Y APLICAR");
+        btnSave.setTextColor(Color.rgb(6, 9, 14));
+        btnSave.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        btnSave.setTypeface(Typeface.create("sans-serif-condensed", Typeface.BOLD));
+        btnSave.setBackground(createGradientButton(palette.accent, palette.accentBg, 2));
+        LinearLayout.LayoutParams saveLp = new LinearLayout.LayoutParams(0, dp(44), 1.2f);
+        saveLp.rightMargin = dp(8);
+        btnSave.setOnClickListener(v -> {
+            hapticFeedback(v);
+            String uUpdates = etUpdates.getText().toString().trim();
+            String uMotd = etMotd.getText().toString().trim();
+            String uCommands = etCommands.getText().toString().trim();
+            String uRepo = etRepo.getText().toString().trim();
+
+            hubPrefs.edit()
+                .putString(KEY_URL_UPDATES, uUpdates.isEmpty() ? DEFAULT_URL_UPDATES_JSON : uUpdates)
+                .putString(KEY_URL_MOTD, uMotd.isEmpty() ? DEFAULT_URL_MOTD_JSON : uMotd)
+                .putString(KEY_URL_COMMANDS, uCommands.isEmpty() ? DEFAULT_URL_COMMANDS_JSON : uCommands)
+                .putString(KEY_URL_REPO, uRepo.isEmpty() ? DEFAULT_URL_GITHUB_REPO : uRepo)
+                .apply();
+
+            Toast.makeText(this, "✓ Rutas actualizadas y guardadas con éxito", Toast.LENGTH_SHORT).show();
+        });
+        actionsRow.addView(btnSave, saveLp);
+
+        Button btnReset = new Button(this);
+        btnReset.setText("RESTABLECER POR DEFECTO");
+        btnReset.setTextColor(palette.textSecondary);
+        btnReset.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+        btnReset.setTypeface(Typeface.create("sans-serif-condensed", Typeface.BOLD));
+        btnReset.setBackground(createButtonDrawable(palette.btnSecondaryBg, Color.argb(200, 28, 40, 60), 2, palette.btnSecondaryBorder));
+        LinearLayout.LayoutParams resetLp = new LinearLayout.LayoutParams(0, dp(44), 0.8f);
+        btnReset.setOnClickListener(v -> {
+            hapticFeedback(v);
+            etUpdates.setText(DEFAULT_URL_UPDATES_JSON);
+            etMotd.setText(DEFAULT_URL_MOTD_JSON);
+            etCommands.setText(DEFAULT_URL_COMMANDS_JSON);
+            etRepo.setText(DEFAULT_URL_GITHUB_REPO);
+
+            hubPrefs.edit()
+                .remove(KEY_URL_UPDATES)
+                .remove(KEY_URL_MOTD)
+                .remove(KEY_URL_COMMANDS)
+                .remove(KEY_URL_REPO)
+                .apply();
+
+            Toast.makeText(this, "✓ Valores predeterminados restaurados", Toast.LENGTH_SHORT).show();
+        });
+        actionsRow.addView(btnReset, resetLp);
+
+        page.addView(actionsRow);
+
+        return sv;
+    }
+
+    private EditText createTacticalEditText(String text, String hint) {
+        EditText et = new EditText(this);
+        et.setText(text);
+        et.setHint(hint);
+        et.setHintTextColor(palette.textMuted);
+        et.setTextColor(palette.textPrimary);
+        et.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        et.setTypeface(Typeface.create("sans-serif-condensed", Typeface.NORMAL));
+        et.setSingleLine(true);
+        et.setPadding(dp(12), dp(10), dp(12), dp(10));
+
+        GradientDrawable gd = new GradientDrawable();
+        gd.setColor(Color.argb(140, 12, 18, 28));
+        gd.setCornerRadius(dp(2));
+        gd.setStroke(dp(1), Color.argb(60, 255, 255, 255));
+        et.setBackground(gd);
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(40));
+        lp.bottomMargin = dp(4);
+        et.setLayoutParams(lp);
+        return et;
+    }
+
+    private void addRouteLabel(LinearLayout parent, String text) {
+        TextView tv = new TextView(this);
+        tv.setText(text);
+        tv.setTextColor(palette.textSecondary);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
+        tv.setTypeface(Typeface.create("sans-serif-condensed", Typeface.BOLD));
+        tv.setPadding(0, dp(8), 0, dp(3));
+        parent.addView(tv);
+    }
+
+    private void addTestConnectionRow(LinearLayout parent, EditText targetEt) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, dp(2), 0, dp(6));
+
+        Button btnTest = new Button(this);
+        btnTest.setText("⚡ Probar Conexión");
+        btnTest.setTextColor(palette.accent);
+        btnTest.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
+        btnTest.setTypeface(Typeface.create("sans-serif-condensed", Typeface.BOLD));
+        btnTest.setBackground(createButtonDrawable(Color.argb(60, 14, 165, 233), Color.argb(120, 14, 165, 233), 2, Color.argb(90, 56, 189, 248)));
+        LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(30));
+        btnLp.rightMargin = dp(10);
+        row.addView(btnTest, btnLp);
+
+        TextView tvStatus = new TextView(this);
+        tvStatus.setText("Estado: No verificado");
+        tvStatus.setTextColor(palette.textMuted);
+        tvStatus.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
+        tvStatus.setTypeface(Typeface.create("sans-serif-condensed", Typeface.NORMAL));
+        row.addView(tvStatus);
+
+        btnTest.setOnClickListener(v -> {
+            hapticFeedback(v);
+            final String testUrl = targetEt.getText().toString().trim();
+            if (testUrl.isEmpty() || !testUrl.startsWith("http")) {
+                tvStatus.setText("✗ URL inválida");
+                tvStatus.setTextColor(Color.rgb(248, 113, 113));
+                return;
+            }
+            tvStatus.setText("Conectando...");
+            tvStatus.setTextColor(palette.accent);
+            new Thread(() -> {
+                try {
+                    URL u = new URL(testUrl);
+                    HttpURLConnection c = (HttpURLConnection) u.openConnection();
+                    c.setConnectTimeout(3500);
+                    c.setReadTimeout(3500);
+                    c.setRequestMethod("GET");
+                    c.connect();
+                    int code = c.getResponseCode();
+                    c.disconnect();
+                    handler.post(() -> {
+                        if (code == 200) {
+                            tvStatus.setText("✓ Conexión exitosa (HTTP 200 OK)");
+                            tvStatus.setTextColor(palette.successBadgeText);
+                        } else {
+                            tvStatus.setText("⚠️ Servidor respondió: HTTP " + code);
+                            tvStatus.setTextColor(palette.warningBadgeText);
+                        }
+                    });
+                } catch (Exception e) {
+                    handler.post(() -> {
+                        tvStatus.setText("✗ Error: " + (e.getMessage() != null ? e.getMessage() : "Timeout"));
+                        tvStatus.setTextColor(Color.rgb(248, 113, 113));
+                    });
+                }
+            }).start();
+        });
+
+        parent.addView(row);
+    }
+
+    // ==========================================
+    // TAB 6: INFORMACIÓN Y ESTADO DEL SISTEMA
     // ==========================================
     private View buildPageInfo() {
         ScrollView sv = new ScrollView(this);

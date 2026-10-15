@@ -35,7 +35,7 @@ public class MotdManager {
 
     // Default internal fallback array (100% legal-safe & trademark-free)
     private static final String[] DEFAULT_MESSAGES = {
-        "Spartan CE • v1.0.0",
+        "Spartan CE • v1.1.0",
         "Engine Built by @kyrnforge",
         "Tactical Mobile Engine Active",
         "HUD Controller & Aim System Ready",
@@ -146,7 +146,7 @@ public class MotdManager {
     private static void fetchRemoteJson(Context context) {
         new Thread(() -> {
             try {
-                URL url = new URL(GITHUB_MOTD_URL);
+                URL url = new URL(LauncherActivity.getMotdUrl(context));
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setConnectTimeout(4000);
                 conn.setReadTimeout(4000);
