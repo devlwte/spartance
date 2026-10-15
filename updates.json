@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "latest_version": "1.1.0",
+  "version_code": 11,
+  "mandatory_update": false,
+  "release_url": "https://github.com/devlwte/spartance/releases/latest",
+  "notification": {
+    "id": "notice_v110",
+    "badge_count": 0,
+    "title": "SPARTAN CE v1.1.0 DISPONIBLE",
+    "date": "2026-10-14",
+    "summary": "Rediseño de interfaz Halo MCC, telemetría de hardware y selector de idioma.",
+    "message": "Bienvenido a Spartan CE v1.1.0. Se ha implementado el rediseño completo de interfaz inspirado en Halo MCC sin recuadros rígidos, telemetría de hardware en tiempo real y selector de idioma para campañas.",
+    "changelog": [
+      "Menú táctico estilo Halo MCC sin bordes rígidos y con velo difuminado",
+      "Telemetría de hardware en tiempo real (RAM, resolución, Hz, almacenamiento)",
+      "Selector oficial de idioma de mapas (Español, Inglés, etc.)",
+      "Pie de página con eslogan y licencia comunitaria",
+      "Optimización de controles táctiles, giroscopio y vibración háptica"
+    ],
+    "action_button": {
+      "text": "Ver en GitHub",
+      "url": "https://github.com/devlwte/spartance/releases/tag/v1.1.0"
+    }
+  },
+  "routes": {
+    "motd_url": "https://raw.githubusercontent.com/devlwte/spartance/main/motd.json",
+    "updates_url": "https://raw.githubusercontent.com/devlwte/spartance/main/updates.json",
+    "commands_url": "https://raw.githubusercontent.com/devlwte/spartance/main/commands.json",
+    "repository_url": "https://github.com/devlwte/spartance"
+  }
+}

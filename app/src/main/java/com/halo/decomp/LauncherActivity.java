@@ -200,12 +200,28 @@ public class LauncherActivity extends Activity {
         final int divider = Color.argb(35, 255, 255, 255);
     }
 
-    private GradientDrawable createCardBackground() {
-        GradientDrawable gd = new GradientDrawable();
-        gd.setColor(palette.bgCard);
-        gd.setCornerRadius(dp(2)); // Sharp console-grade tactical edge
-        gd.setStroke(dp(1), palette.strokeCard);
-        return gd;
+    private Drawable createContentAreaBackground() {
+        return new GradientDrawable(
+            GradientDrawable.Orientation.LEFT_RIGHT,
+            new int[] {
+                Color.argb(205, 6, 9, 14), // Darkest near vertical divider to protect text readability
+                Color.argb(150, 8, 12, 18), // Soft atmospheric slate glass transition
+                Color.argb(105, 10, 15, 22)  // Soft fade toward the right edge
+            }
+        );
+    }
+
+    private void configureTacticalScrollView(ScrollView sv) {
+        sv.setFillViewport(true);
+        sv.setVerticalScrollBarEnabled(true);
+        sv.setScrollbarFadingEnabled(false);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            GradientDrawable thumb = new GradientDrawable();
+            thumb.setColor(Color.argb(140, 56, 189, 248)); // Subtle tactical cyan thumb
+            thumb.setCornerRadius(dp(2));
+            thumb.setSize(dp(3), dp(24));
+            sv.setVerticalScrollbarThumbDrawable(thumb);
+        }
     }
 
     private void hapticFeedback(View v) {
@@ -506,11 +522,11 @@ public class LauncherActivity extends Activity {
         divLp.rightMargin = dp(16);
         bodyRow.addView(verticalDivider, divLp);
 
-        // --- RIGHT CONTENT AREA (100% Vertical Space, Soft Translucent Slate Glass) ---
+        // --- RIGHT CONTENT AREA (100% Vertical Space, Soft Blur/Vignette Wash, No Hard Border) ---
         LinearLayout rightPanelContainer = new LinearLayout(this);
         rightPanelContainer.setOrientation(LinearLayout.VERTICAL);
-        rightPanelContainer.setBackground(createCardBackground());
-        rightPanelContainer.setPadding(dp(20), dp(16), dp(20), dp(16));
+        rightPanelContainer.setBackground(createContentAreaBackground());
+        rightPanelContainer.setPadding(dp(16), dp(8), dp(16), dp(4));
         LinearLayout.LayoutParams rightPanelLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1.0f);
         bodyRow.addView(rightPanelContainer, rightPanelLp);
 
@@ -531,21 +547,37 @@ public class LauncherActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         }
 
-        // --- BOTTOM FOOTER: PURE CONTEXTUAL HELPER PROMPT (Zero Clutter) ---
+        // --- BOTTOM FOOTER: CENTERED SLOGAN & PROJECT IDENTITY ---
         LinearLayout footerRow = new LinearLayout(this);
-        footerRow.setOrientation(LinearLayout.HORIZONTAL);
-        footerRow.setGravity(Gravity.CENTER_VERTICAL);
-        footerRow.setPadding(dp(4), dp(4), dp(4), dp(2));
+        footerRow.setOrientation(LinearLayout.VERTICAL);
+        footerRow.setGravity(Gravity.CENTER);
+        footerRow.setPadding(dp(8), dp(4), dp(8), dp(2));
         mainContent.addView(footerRow);
 
-        tvFooterDescription = new TextView(this);
-        tvFooterDescription.setTextColor(palette.textSecondary);
-        tvFooterDescription.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f);
-        tvFooterDescription.setTypeface(Typeface.create("sans-serif-condensed", Typeface.NORMAL));
+        TextView tvFooterSlogan = new TextView(this);
+        tvFooterSlogan.setText("SPARTAN CE  //  MOTOR TÁCTICO RECOMPILADO PARA ANDROID");
+        tvFooterSlogan.setTextColor(palette.textSecondary);
+        tvFooterSlogan.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
+        tvFooterSlogan.setTypeface(Typeface.create("sans-serif-condensed", Typeface.BOLD));
+        tvFooterSlogan.setGravity(Gravity.CENTER);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            tvFooterDescription.setLetterSpacing(0.04f);
+            tvFooterSlogan.setLetterSpacing(0.08f);
         }
-        footerRow.addView(tvFooterDescription, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        footerRow.addView(tvFooterSlogan);
+
+        TextView tvFooterLicense = new TextView(this);
+        tvFooterLicense.setText("Proyecto Comunitario de Código Abierto  •  Licencia MIT / GPL  •  Sin Fines de Lucro");
+        tvFooterLicense.setTextColor(palette.textMuted);
+        tvFooterLicense.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f);
+        tvFooterLicense.setTypeface(Typeface.create("sans-serif-condensed", Typeface.NORMAL));
+        tvFooterLicense.setGravity(Gravity.CENTER);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            tvFooterLicense.setLetterSpacing(0.04f);
+        }
+        LinearLayout.LayoutParams licLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        licLp.topMargin = dp(1);
+        footerRow.addView(tvFooterLicense, licLp);
 
         if (activeTab < 0 || activeTab >= pages.length) activeTab = 0;
         selectTab(activeTab, false);
@@ -625,8 +657,7 @@ public class LauncherActivity extends Activity {
     // ==========================================
     private View buildPagePlay() {
         ScrollView sv = new ScrollView(this);
-        sv.setFillViewport(true);
-        sv.setVerticalScrollBarEnabled(false);
+        configureTacticalScrollView(sv);
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
         sv.addView(page);
@@ -762,8 +793,7 @@ public class LauncherActivity extends Activity {
     // ==========================================
     private View buildPageGraphics() {
         ScrollView sv = new ScrollView(this);
-        sv.setFillViewport(true);
-        sv.setVerticalScrollBarEnabled(false);
+        configureTacticalScrollView(sv);
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
         sv.addView(page);
@@ -950,8 +980,7 @@ public class LauncherActivity extends Activity {
     // ==========================================
     private View buildPageControls() {
         ScrollView sv = new ScrollView(this);
-        sv.setFillViewport(true);
-        sv.setVerticalScrollBarEnabled(false);
+        configureTacticalScrollView(sv);
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
         sv.addView(page);
@@ -1231,8 +1260,7 @@ public class LauncherActivity extends Activity {
     // ==========================================
     private View buildPageSystem() {
         ScrollView sv = new ScrollView(this);
-        sv.setFillViewport(true);
-        sv.setVerticalScrollBarEnabled(false);
+        configureTacticalScrollView(sv);
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
         sv.addView(page);
@@ -1337,8 +1365,7 @@ public class LauncherActivity extends Activity {
     // ==========================================
     private View buildPageInfo() {
         ScrollView sv = new ScrollView(this);
-        sv.setFillViewport(true);
-        sv.setVerticalScrollBarEnabled(false);
+        configureTacticalScrollView(sv);
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
         sv.addView(page);
