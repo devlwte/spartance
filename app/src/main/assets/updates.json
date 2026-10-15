@@ -6,14 +6,14 @@
   "release_url": "https://github.com/devlwte/spartance/releases/latest",
   "notifications": [
     {
-      "id": "notice_v110_mcc",
+      "id": "notice_v110_tactical",
       "type": "update",
       "title": "SPARTAN CE v1.1.0 DISPONIBLE",
       "date": "2026-10-14",
-      "summary": "Rediseño de interfaz Halo MCC, telemetría de hardware y selector de idioma.",
-      "message": "Bienvenido a Spartan CE v1.1.0. Se ha implementado el rediseño completo de interfaz inspirado en Halo MCC sin recuadros rígidos, telemetría de hardware en tiempo real y selector de idioma para campañas.",
+      "summary": "Nueva interfaz táctica Spartan CE, telemetría de hardware y selector de idioma.",
+      "message": "Bienvenido a Spartan CE v1.1.0. Se ha implementado el rediseño completo de interfaz táctica sin recuadros rígidos, telemetría de hardware en tiempo real y selector de idioma para campañas.",
       "changelog": [
-        "Menú táctico estilo Halo MCC sin bordes rígidos y con velo difuminado",
+        "Menú táctico sin bordes rígidos y con velo difuminado",
         "Telemetría de hardware en tiempo real (RAM, resolución, Hz, almacenamiento)",
         "Selector oficial de idioma de mapas (Español, Inglés, etc.)",
         "Pie de página con eslogan y licencia comunitaria",
@@ -26,14 +26,14 @@
     }
   ],
   "notification": {
-    "id": "notice_v110_mcc",
+    "id": "notice_v110_tactical",
     "type": "update",
     "title": "SPARTAN CE v1.1.0 DISPONIBLE",
     "date": "2026-10-14",
-    "summary": "Rediseño de interfaz Halo MCC, telemetría de hardware y selector de idioma.",
-    "message": "Bienvenido a Spartan CE v1.1.0. Se ha implementado el rediseño completo de interfaz inspirado en Halo MCC sin recuadros rígidos, telemetría de hardware en tiempo real y selector de idioma para campañas.",
+    "summary": "Nueva interfaz táctica Spartan CE, telemetría de hardware y selector de idioma.",
+    "message": "Bienvenido a Spartan CE v1.1.0. Se ha implementado el rediseño completo de interfaz táctica sin recuadros rígidos, telemetría de hardware en tiempo real y selector de idioma para campañas.",
     "changelog": [
-      "Menú táctico estilo Halo MCC sin bordes rígidos y con velo difuminado",
+      "Menú táctico sin bordes rígidos y con velo difuminado",
       "Telemetría de hardware en tiempo real (RAM, resolución, Hz, almacenamiento)",
       "Selector oficial de idioma de mapas (Español, Inglés, etc.)",
       "Pie de página con eslogan y licencia comunitaria",
