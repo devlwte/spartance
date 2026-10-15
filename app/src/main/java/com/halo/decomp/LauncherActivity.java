@@ -98,6 +98,7 @@ public class LauncherActivity extends Activity {
 
     // Notification & Bell State (Persistent ID Tracking)
     private View bellBadgeDot;
+    private ImageView ivBellIcon;
     private final List<RemoteNotification> cachedNotifications = new ArrayList<>();
     private static final String PREF_DISMISSED_NOTICES = "pref_dismissed_notices_set";
 
@@ -254,11 +255,19 @@ public class LauncherActivity extends Activity {
     }
 
     private void updateBellBadgeUI() {
-        if (bellBadgeDot == null) return;
         final int unreadCount = getUnreadNotificationsCount();
         runOnUiThread(() -> {
             if (bellBadgeDot != null) {
                 bellBadgeDot.setVisibility(unreadCount > 0 ? View.VISIBLE : View.GONE);
+            }
+            if (ivBellIcon != null) {
+                if (unreadCount > 0) {
+                    ivBellIcon.setColorFilter(Color.rgb(255, 255, 255));
+                    ivBellIcon.setAlpha(1.0f);
+                } else {
+                    ivBellIcon.setColorFilter(Color.rgb(180, 195, 215));
+                    ivBellIcon.setAlpha(0.60f);
+                }
             }
         });
     }
@@ -402,14 +411,14 @@ public class LauncherActivity extends Activity {
 
         LinearLayout rootCard = new LinearLayout(this);
         rootCard.setOrientation(LinearLayout.VERTICAL);
-        rootCard.setPadding(dp(18), dp(16), dp(18), dp(16));
+        rootCard.setPadding(dp(20), dp(16), dp(20), dp(16));
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.argb(250, 8, 12, 18)); // Deep MCC obsidian slate
-        bg.setCornerRadius(dp(4));
-        bg.setStroke(dp(1), Color.argb(80, 56, 189, 248)); // Subtle tactical cyan stroke
+        bg.setColor(Color.argb(252, 11, 14, 20)); // Deep tactical matte obsidian
+        bg.setCornerRadius(dp(3));
+        bg.setStroke(dp(1), Color.argb(45, 203, 213, 225)); // Subtle matte titanium hairline
         rootCard.setBackground(bg);
 
-        // Header Row: Title & Subtitle + Pill + Close Button
+        // Header Row: Title & Subtitle + Pill + Frameless Close Button
         LinearLayout headerRow = new LinearLayout(this);
         headerRow.setOrientation(LinearLayout.HORIZONTAL);
         headerRow.setGravity(Gravity.CENTER_VERTICAL);
@@ -420,9 +429,9 @@ public class LauncherActivity extends Activity {
         headerRow.addView(titleCol, tLp);
 
         TextView tvHeader = new TextView(this);
-        tvHeader.setText("CENTRO DE NOTIFICACIONES Y ACTUALIZACIONES");
-        tvHeader.setTextColor(palette.accent);
-        tvHeader.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        tvHeader.setText("AVISOS DE SPARTAN CE");
+        tvHeader.setTextColor(Color.rgb(255, 255, 255));
+        tvHeader.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         tvHeader.setTypeface(getTacticalTypeface(true));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             tvHeader.setLetterSpacing(0.08f);
@@ -430,8 +439,8 @@ public class LauncherActivity extends Activity {
         titleCol.addView(tvHeader);
 
         TextView tvSubHeader = new TextView(this);
-        tvSubHeader.setText("Sincronización remota Spartan CE • Halo MCC Protocol");
-        tvSubHeader.setTextColor(palette.textMuted);
+        tvSubHeader.setText("Canal de avisos y registros del proyecto Spartan CE");
+        tvSubHeader.setTextColor(Color.rgb(148, 163, 184));
         tvSubHeader.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9.5f);
         tvSubHeader.setTypeface(getTacticalTypeface(false));
         titleCol.addView(tvSubHeader);
@@ -439,41 +448,43 @@ public class LauncherActivity extends Activity {
         // Status pill
         final int unreadCount = getUnreadNotificationsCount();
         TextView tvPill = new TextView(this);
-        tvPill.setText(unreadCount > 0 ? "● " + unreadCount + " NUEVA(S)" : "✓ AL DÍA");
+        tvPill.setText(unreadCount > 0 ? "● " + unreadCount + " PENDIENTE" + (unreadCount > 1 ? "S" : "") : "✓ AL DÍA");
         tvPill.setTextColor(unreadCount > 0 ? Color.rgb(245, 158, 11) : Color.rgb(52, 211, 153));
         tvPill.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
         tvPill.setTypeface(getTacticalTypeface(true));
         tvPill.setPadding(dp(8), dp(3), dp(8), dp(3));
         GradientDrawable pillBg = new GradientDrawable();
         pillBg.setCornerRadius(dp(2));
-        pillBg.setColor(unreadCount > 0 ? Color.argb(40, 245, 158, 11) : Color.argb(35, 52, 211, 153));
-        pillBg.setStroke(dp(1), unreadCount > 0 ? Color.argb(90, 245, 158, 11) : Color.argb(80, 52, 211, 153));
+        pillBg.setColor(unreadCount > 0 ? Color.argb(30, 245, 158, 11) : Color.argb(20, 52, 211, 153));
+        pillBg.setStroke(dp(1), unreadCount > 0 ? Color.argb(60, 245, 158, 11) : Color.argb(50, 52, 211, 153));
         tvPill.setBackground(pillBg);
         LinearLayout.LayoutParams pillLp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         pillLp.leftMargin = dp(8);
-        pillLp.rightMargin = dp(8);
+        pillLp.rightMargin = dp(12);
         headerRow.addView(tvPill, pillLp);
 
-        // Close '✕' button
-        Button btnCloseX = new Button(this);
-        btnCloseX.setText("✕");
-        btnCloseX.setTextColor(palette.textSecondary);
-        btnCloseX.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-        btnCloseX.setBackground(createButtonDrawable(palette.btnSecondaryBg, Color.argb(180, 28, 40, 60), 2, palette.btnSecondaryBorder));
-        int closeSize = dp(28);
-        LinearLayout.LayoutParams closeLp = new LinearLayout.LayoutParams(closeSize, closeSize);
-        btnCloseX.setOnClickListener(v -> {
+        // Close '✕' - Frameless minimal touch target (NO button box)
+        TextView tvCloseX = new TextView(this);
+        tvCloseX.setText("✕");
+        tvCloseX.setTextColor(Color.rgb(148, 163, 184));
+        tvCloseX.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        tvCloseX.setTypeface(Typeface.DEFAULT_BOLD);
+        tvCloseX.setGravity(Gravity.CENTER);
+        tvCloseX.setPadding(dp(6), dp(4), dp(4), dp(4));
+        tvCloseX.setFocusable(true);
+        tvCloseX.setClickable(true);
+        tvCloseX.setOnClickListener(v -> {
             hapticFeedback(v);
             dialog.dismiss();
         });
-        headerRow.addView(btnCloseX, closeLp);
+        headerRow.addView(tvCloseX);
 
         rootCard.addView(headerRow);
 
         // Divider
         View divider = new View(this);
-        divider.setBackgroundColor(Color.argb(45, 56, 189, 248));
+        divider.setBackgroundColor(Color.argb(25, 255, 255, 255));
         LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
         divLp.topMargin = dp(10);
         divLp.bottomMargin = dp(10);
@@ -520,7 +531,7 @@ public class LauncherActivity extends Activity {
         if (!readList.isEmpty()) {
             TextView tvSecRead = new TextView(this);
             tvSecRead.setText(unreadList.isEmpty() ? "HISTORIAL DE AVISOS LEÍDOS:" : "AVISOS ANTERIORES:");
-            tvSecRead.setTextColor(palette.textMuted);
+            tvSecRead.setTextColor(Color.rgb(100, 116, 139));
             tvSecRead.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f);
             tvSecRead.setTypeface(getTacticalTypeface(true));
             tvSecRead.setPadding(0, unreadList.isEmpty() ? 0 : dp(10), 0, dp(6));
@@ -534,7 +545,7 @@ public class LauncherActivity extends Activity {
         if (unreadList.isEmpty() && readList.isEmpty()) {
             TextView tvEmpty = new TextView(this);
             tvEmpty.setText("✓ TODAS LAS NOTIFICACIONES AL DÍA\n\nNo hay avisos o actualizaciones registradas en el repositorio.");
-            tvEmpty.setTextColor(palette.textSecondary);
+            tvEmpty.setTextColor(Color.rgb(148, 163, 184));
             tvEmpty.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f);
             tvEmpty.setTypeface(getTacticalTypeface(false));
             tvEmpty.setPadding(0, dp(16), 0, dp(16));
@@ -543,7 +554,7 @@ public class LauncherActivity extends Activity {
 
         // Bottom Action Bar
         View btmDivider = new View(this);
-        btmDivider.setBackgroundColor(Color.argb(45, 56, 189, 248));
+        btmDivider.setBackgroundColor(Color.argb(25, 255, 255, 255));
         LinearLayout.LayoutParams bDivLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
         bDivLp.topMargin = dp(10);
         bDivLp.bottomMargin = dp(10);
@@ -556,12 +567,13 @@ public class LauncherActivity extends Activity {
         if (!unreadList.isEmpty()) {
             Button btnMarkAll = new Button(this);
             btnMarkAll.setText("✓ LEER TODAS");
-            btnMarkAll.setTextColor(Color.rgb(6, 9, 14));
+            btnMarkAll.setTextColor(Color.rgb(255, 255, 255));
             btnMarkAll.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
             btnMarkAll.setTypeface(getTacticalTypeface(true));
-            btnMarkAll.setBackground(createGradientButton(palette.accent, palette.accentBg, 2));
-            btnMarkAll.setPadding(dp(12), dp(4), dp(12), dp(4));
-            LinearLayout.LayoutParams maLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(34));
+            btnMarkAll.setBackground(createButtonDrawable(Color.argb(180, 30, 41, 59), Color.argb(220, 51, 65, 85), 2, Color.argb(70, 148, 163, 184)));
+            btnMarkAll.setPadding(dp(14), 0, dp(14), 0);
+            btnMarkAll.setIncludeFontPadding(false);
+            LinearLayout.LayoutParams maLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(32));
             maLp.rightMargin = dp(8);
             btnMarkAll.setOnClickListener(v -> {
                 hapticFeedback(v);
@@ -573,13 +585,14 @@ public class LauncherActivity extends Activity {
         }
 
         Button btnSync = new Button(this);
-        btnSync.setText("🔄 REINTENTAR SYNC");
-        btnSync.setTextColor(palette.textSecondary);
+        btnSync.setText("REINTENTAR SYNC");
+        btnSync.setTextColor(Color.rgb(148, 163, 184));
         btnSync.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
         btnSync.setTypeface(getTacticalTypeface(true));
-        btnSync.setBackground(createButtonDrawable(palette.btnSecondaryBg, Color.argb(180, 28, 40, 60), 2, palette.btnSecondaryBorder));
-        btnSync.setPadding(dp(10), dp(4), dp(10), dp(4));
-        LinearLayout.LayoutParams syncLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(34));
+        btnSync.setBackground(createButtonDrawable(Color.argb(100, 15, 23, 42), Color.argb(150, 24, 34, 50), 2, Color.argb(35, 148, 163, 184)));
+        btnSync.setPadding(dp(12), 0, dp(12), 0);
+        btnSync.setIncludeFontPadding(false);
+        LinearLayout.LayoutParams syncLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(32));
         syncLp.rightMargin = dp(8);
         btnSync.setOnClickListener(v -> {
             hapticFeedback(v);
@@ -591,12 +604,13 @@ public class LauncherActivity extends Activity {
 
         Button btnClose = new Button(this);
         btnClose.setText("CERRAR");
-        btnClose.setTextColor(palette.textPrimary);
+        btnClose.setTextColor(Color.rgb(226, 232, 240));
         btnClose.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
         btnClose.setTypeface(getTacticalTypeface(true));
-        btnClose.setBackground(createButtonDrawable(palette.btnSecondaryBg, Color.argb(180, 28, 40, 60), 2, palette.btnSecondaryBorder));
-        btnClose.setPadding(dp(12), dp(4), dp(12), dp(4));
-        LinearLayout.LayoutParams cLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(34));
+        btnClose.setBackground(createButtonDrawable(Color.argb(140, 20, 28, 40), Color.argb(190, 32, 44, 62), 2, Color.argb(40, 148, 163, 184)));
+        btnClose.setPadding(dp(14), 0, dp(14), 0);
+        btnClose.setIncludeFontPadding(false);
+        LinearLayout.LayoutParams cLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(32));
         btnClose.setOnClickListener(v -> {
             hapticFeedback(v);
             dialog.dismiss();
@@ -618,12 +632,12 @@ public class LauncherActivity extends Activity {
     private View createNotificationItemView(Dialog dialog, RemoteNotification n, boolean isRead) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(12), dp(10), dp(12), dp(10));
+        card.setPadding(dp(14), dp(10), dp(14), dp(10));
 
         GradientDrawable cBg = new GradientDrawable();
-        cBg.setCornerRadius(dp(3));
-        cBg.setColor(isRead ? Color.argb(60, 10, 16, 26) : Color.argb(120, 16, 26, 42));
-        cBg.setStroke(dp(1), isRead ? Color.argb(30, 56, 189, 248) : Color.argb(70, 56, 189, 248));
+        cBg.setCornerRadius(dp(2));
+        cBg.setColor(isRead ? Color.argb(45, 14, 18, 26) : Color.argb(95, 18, 24, 34));
+        cBg.setStroke(dp(1), isRead ? Color.argb(20, 255, 255, 255) : Color.argb(40, 255, 255, 255));
         card.setBackground(cBg);
 
         LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -637,21 +651,21 @@ public class LauncherActivity extends Activity {
 
         TextView tvTitle = new TextView(this);
         tvTitle.setText(n.title.isEmpty() ? "Aviso de Spartan CE" : n.title);
-        tvTitle.setTextColor(isRead ? palette.textSecondary : palette.textPrimary);
+        tvTitle.setTextColor(isRead ? Color.rgb(148, 163, 184) : Color.rgb(255, 255, 255));
         tvTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         tvTitle.setTypeface(getTacticalTypeface(true));
         LinearLayout.LayoutParams tLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
         rowTop.addView(tvTitle, tLp);
 
         TextView tvTag = new TextView(this);
-        tvTag.setText(isRead ? "✓ LEÍDO" : "● NUEVA");
-        tvTag.setTextColor(isRead ? palette.textMuted : Color.rgb(245, 158, 11));
+        tvTag.setText(isRead ? "LEÍDO" : "NUEVO");
+        tvTag.setTextColor(isRead ? Color.rgb(100, 116, 139) : Color.rgb(245, 158, 11));
         tvTag.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9.5f);
         tvTag.setTypeface(getTacticalTypeface(true));
         tvTag.setPadding(dp(6), dp(2), dp(6), dp(2));
         GradientDrawable tagBg = new GradientDrawable();
         tagBg.setCornerRadius(dp(2));
-        tagBg.setColor(isRead ? Color.argb(25, 255, 255, 255) : Color.argb(45, 245, 158, 11));
+        tagBg.setColor(isRead ? Color.argb(20, 255, 255, 255) : Color.argb(35, 245, 158, 11));
         tvTag.setBackground(tagBg);
         rowTop.addView(tvTag);
         card.addView(rowTop);
@@ -659,7 +673,7 @@ public class LauncherActivity extends Activity {
         // Metadata: ID & Date
         TextView tvMeta = new TextView(this);
         tvMeta.setText("ID: " + n.id + (n.date.isEmpty() ? "" : "  •  " + n.date));
-        tvMeta.setTextColor(isRead ? palette.textMuted : palette.accent);
+        tvMeta.setTextColor(Color.rgb(100, 116, 139));
         tvMeta.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9.5f);
         tvMeta.setTypeface(getTacticalTypeface(false));
         tvMeta.setPadding(0, dp(2), 0, dp(6));
@@ -669,7 +683,7 @@ public class LauncherActivity extends Activity {
         if (!n.message.isEmpty()) {
             TextView tvMsg = new TextView(this);
             tvMsg.setText(n.message);
-            tvMsg.setTextColor(isRead ? palette.textMuted : palette.textSecondary);
+            tvMsg.setTextColor(isRead ? Color.rgb(110, 125, 145) : Color.rgb(203, 213, 225));
             tvMsg.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
             tvMsg.setTypeface(getTacticalTypeface(false));
             tvMsg.setPadding(0, 0, 0, dp(6));
@@ -680,8 +694,8 @@ public class LauncherActivity extends Activity {
         if (!n.changelog.isEmpty()) {
             for (String item : n.changelog) {
                 TextView tvItem = new TextView(this);
-                tvItem.setText("›  " + item);
-                tvItem.setTextColor(isRead ? palette.textMuted : palette.textPrimary);
+                tvItem.setText("-  " + item);
+                tvItem.setTextColor(isRead ? Color.rgb(100, 116, 139) : Color.rgb(180, 195, 215));
                 tvItem.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
                 tvItem.setTypeface(getTacticalTypeface(false));
                 tvItem.setPadding(dp(4), dp(1), 0, dp(1));
@@ -698,12 +712,13 @@ public class LauncherActivity extends Activity {
         final String actUrl = !n.actionUrl.isEmpty() ? n.actionUrl : n.releaseUrl;
         if (!actUrl.isEmpty()) {
             Button btnAct = new Button(this);
-            btnAct.setText(n.actionText.isEmpty() ? "🌐  VER DETALLES" : "🌐  " + n.actionText.toUpperCase());
-            btnAct.setTextColor(Color.rgb(6, 9, 14));
+            btnAct.setText(n.actionText.isEmpty() ? "DESCARGAR EN GITHUB" : n.actionText.toUpperCase());
+            btnAct.setTextColor(Color.rgb(255, 255, 255));
             btnAct.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
             btnAct.setTypeface(getTacticalTypeface(true));
-            btnAct.setBackground(createGradientButton(palette.accent, palette.accentBg, 2));
-            btnAct.setPadding(dp(10), dp(2), dp(10), dp(2));
+            btnAct.setBackground(createButtonDrawable(Color.argb(180, 24, 34, 48), Color.argb(220, 36, 50, 72), 2, Color.argb(50, 148, 163, 184)));
+            btnAct.setPadding(dp(12), 0, dp(12), 0);
+            btnAct.setIncludeFontPadding(false);
             LinearLayout.LayoutParams actLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(30));
             actLp.rightMargin = dp(8);
             btnAct.setOnClickListener(v -> {
@@ -716,11 +731,12 @@ public class LauncherActivity extends Activity {
         if (!isRead) {
             Button btnDismiss = new Button(this);
             btnDismiss.setText("✓ MARCAR LEÍDA");
-            btnDismiss.setTextColor(palette.textPrimary);
+            btnDismiss.setTextColor(Color.rgb(180, 195, 215));
             btnDismiss.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
             btnDismiss.setTypeface(getTacticalTypeface(true));
-            btnDismiss.setBackground(createButtonDrawable(palette.btnSecondaryBg, Color.argb(180, 28, 40, 60), 2, palette.btnSecondaryBorder));
-            btnDismiss.setPadding(dp(10), dp(2), dp(10), dp(2));
+            btnDismiss.setBackground(createButtonDrawable(Color.argb(100, 16, 22, 32), Color.argb(150, 24, 34, 48), 2, Color.argb(35, 148, 163, 184)));
+            btnDismiss.setPadding(dp(12), 0, dp(12), 0);
+            btnDismiss.setIncludeFontPadding(false);
             LinearLayout.LayoutParams disLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(30));
             btnDismiss.setOnClickListener(v -> {
                 hapticFeedback(v);
@@ -1036,39 +1052,46 @@ public class LauncherActivity extends Activity {
         headerRow.addView(rightHeaderControls, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        // 1. Notification Bell
+        // 1. Notification Bell (Clean Frameless Tactical Vector)
         FrameLayout bellFrame = new FrameLayout(this);
         LinearLayout.LayoutParams bellLp = new LinearLayout.LayoutParams(dp(36), dp(32));
-        bellLp.rightMargin = dp(8);
+        bellLp.rightMargin = dp(10);
         bellFrame.setLayoutParams(bellLp);
-
-        Button btnBell = new Button(this);
-        btnBell.setText("🔔");
-        btnBell.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-        btnBell.setBackground(createButtonDrawable(palette.btnSecondaryBg, Color.argb(200, 28, 40, 60), 2, palette.btnSecondaryBorder));
-        btnBell.setOnClickListener(v -> {
+        bellFrame.setFocusable(true);
+        bellFrame.setClickable(true);
+        bellFrame.setOnClickListener(v -> {
             hapticFeedback(v);
             showNotificationsDialog();
         });
-        bellFrame.addView(btnBell, new FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        ivBellIcon = new ImageView(this);
+        ivBellIcon.setImageResource(R.drawable.ic_tactical_bell);
+        ivBellIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        int iconSize = dp(20);
+        FrameLayout.LayoutParams iconLp = new FrameLayout.LayoutParams(iconSize, iconSize);
+        iconLp.gravity = Gravity.CENTER;
+        ivBellIcon.setLayoutParams(iconLp);
+        ivBellIcon.setColorFilter(Color.rgb(180, 195, 215));
+        ivBellIcon.setAlpha(0.60f);
+        bellFrame.addView(ivBellIcon);
 
         // Amber Alert Dot for unread announcements / updates
         bellBadgeDot = new View(this);
         GradientDrawable dotBg = new GradientDrawable();
         dotBg.setShape(GradientDrawable.OVAL);
-        dotBg.setColor(Color.rgb(245, 158, 11)); // Amber alert
+        dotBg.setColor(Color.rgb(245, 158, 11)); // Tactical amber alert
         dotBg.setStroke(dp(1), Color.rgb(6, 9, 14));
         bellBadgeDot.setBackground(dotBg);
-        int dotSize = dp(8.5f);
+        int dotSize = dp(7);
         FrameLayout.LayoutParams dotLp = new FrameLayout.LayoutParams(dotSize, dotSize);
         dotLp.gravity = Gravity.TOP | Gravity.END;
-        dotLp.topMargin = dp(3);
+        dotLp.topMargin = dp(4);
         dotLp.rightMargin = dp(4);
         bellBadgeDot.setLayoutParams(dotLp);
         bellBadgeDot.setVisibility(View.GONE);
         bellFrame.addView(bellBadgeDot);
 
+        updateBellBadgeUI();
         rightHeaderControls.addView(bellFrame);
 
         // 2. Spartan-117 Profile Badge
@@ -2254,13 +2277,15 @@ public class LauncherActivity extends Activity {
         row.setPadding(0, dp(2), 0, dp(6));
 
         Button btnTest = new Button(this);
-        btnTest.setText("⚡ Probar Conexión");
-        btnTest.setTextColor(palette.accent);
-        btnTest.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
-        btnTest.setTypeface(Typeface.create("sans-serif-condensed", Typeface.BOLD));
-        btnTest.setBackground(createButtonDrawable(Color.argb(60, 14, 165, 233), Color.argb(120, 14, 165, 233), 2, Color.argb(90, 56, 189, 248)));
-        LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(30));
-        btnLp.rightMargin = dp(10);
+        btnTest.setText("PROBAR CONEXIÓN");
+        btnTest.setTextColor(palette.textPrimary);
+        btnTest.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
+        btnTest.setTypeface(getTacticalTypeface(true));
+        btnTest.setBackground(createButtonDrawable(Color.argb(160, 20, 28, 42), Color.argb(220, 32, 44, 64), 2, Color.argb(60, 148, 163, 184)));
+        btnTest.setPadding(dp(14), 0, dp(14), 0);
+        btnTest.setIncludeFontPadding(false);
+        LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(32));
+        btnLp.rightMargin = dp(12);
         row.addView(btnTest, btnLp);
 
         TextView tvStatus = new TextView(this);
