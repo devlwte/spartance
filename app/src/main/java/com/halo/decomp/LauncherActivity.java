@@ -3,11 +3,13 @@ package com.halo.decomp;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.StateListDrawable;
@@ -24,6 +26,7 @@ import android.view.HapticFeedbackConstants;
 import android.view.InputDevice;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
@@ -45,7 +48,13 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.channels.FileChannel;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 /**
  * Spartan CE - Tactical Console Hub & Launcher.
@@ -86,6 +95,27 @@ public class LauncherActivity extends Activity {
     private LinearLayout[] menuRows;
     private View[] menuAccents;
     private TextView[] menuLabels;
+
+    // Notification & Bell State (Persistent ID Tracking)
+    private View bellBadgeDot;
+    private final List<RemoteNotification> cachedNotifications = new ArrayList<>();
+    private static final String PREF_DISMISSED_NOTICES = "pref_dismissed_notices_set";
+
+    public static class RemoteNotification {
+        public String id = "";
+        public String type = "info";
+        public int versionCode = 0;
+        public String latestVersion = "";
+        public boolean hasUpdate = false;
+        public String releaseUrl = "";
+        public String title = "";
+        public String date = "";
+        public String summary = "";
+        public String message = "";
+        public List<String> changelog = new ArrayList<>();
+        public String actionText = "";
+        public String actionUrl = "";
+    }
 
     public static final String DEFAULT_URL_UPDATES_JSON = "https://raw.githubusercontent.com/devlwte/spartance/main/updates.json";
     public static final String DEFAULT_URL_MOTD_JSON = "https://raw.githubusercontent.com/devlwte/spartance/main/motd.json";
@@ -160,6 +190,550 @@ public class LauncherActivity extends Activity {
         EngineConfigManager.syncToConfigFile(this);
 
         buildHubInterface();
+        loadNotificationsFromAssets();
+        checkAndSyncNotifications();
+    }
+
+    private Typeface getTacticalTypeface(boolean bold) {
+        try {
+            Typeface tf = Typeface.create("sans-serif-condensed", bold ? Typeface.BOLD : Typeface.NORMAL);
+            if (tf != null) return tf;
+        } catch (Throwable ignored) {}
+        try {
+            Typeface tf = Typeface.create("sans-serif-medium", bold ? Typeface.BOLD : Typeface.NORMAL);
+            if (tf != null) return tf;
+        } catch (Throwable ignored) {}
+        return bold ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT;
+    }
+
+    private boolean isNoticeDismissed(String noticeId) {
+        if (noticeId == null || noticeId.trim().isEmpty()) return true;
+        Set<String> set = hubPrefs.getStringSet(PREF_DISMISSED_NOTICES, null);
+        return set != null && set.contains(noticeId.trim());
+    }
+
+    private void markNoticeDismissed(String noticeId) {
+        if (noticeId == null || noticeId.trim().isEmpty()) return;
+        Set<String> set = new HashSet<>();
+        Set<String> existing = hubPrefs.getStringSet(PREF_DISMISSED_NOTICES, null);
+        if (existing != null) {
+            set.addAll(existing);
+        }
+        set.add(noticeId.trim());
+        hubPrefs.edit().putStringSet(PREF_DISMISSED_NOTICES, set).commit();
+        updateBellBadgeUI();
+    }
+
+    private void markAllNoticesDismissed() {
+        Set<String> set = new HashSet<>();
+        Set<String> existing = hubPrefs.getStringSet(PREF_DISMISSED_NOTICES, null);
+        if (existing != null) {
+            set.addAll(existing);
+        }
+        synchronized (cachedNotifications) {
+            for (RemoteNotification n : cachedNotifications) {
+                if (n.id != null && !n.id.trim().isEmpty()) {
+                    set.add(n.id.trim());
+                }
+            }
+        }
+        hubPrefs.edit().putStringSet(PREF_DISMISSED_NOTICES, set).commit();
+        updateBellBadgeUI();
+    }
+
+    private int getUnreadNotificationsCount() {
+        int count = 0;
+        synchronized (cachedNotifications) {
+            for (RemoteNotification n : cachedNotifications) {
+                if (n.id != null && !n.id.trim().isEmpty() && !isNoticeDismissed(n.id)) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    private void updateBellBadgeUI() {
+        if (bellBadgeDot == null) return;
+        final int unreadCount = getUnreadNotificationsCount();
+        runOnUiThread(() -> {
+            if (bellBadgeDot != null) {
+                bellBadgeDot.setVisibility(unreadCount > 0 ? View.VISIBLE : View.GONE);
+            }
+        });
+    }
+
+    private void loadNotificationsFromAssets() {
+        try {
+            android.content.res.AssetManager am = getAssets();
+            try (java.io.InputStream is = am.open("updates.json");
+                 java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(is, java.nio.charset.StandardCharsets.UTF_8))) {
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    sb.append(line);
+                }
+                parseNotificationsFromJson(sb.toString());
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    private synchronized void parseNotificationsFromJson(String jsonStr) {
+        if (jsonStr == null || jsonStr.trim().isEmpty()) return;
+        try {
+            JSONObject root = new JSONObject(jsonStr);
+            List<RemoteNotification> list = new ArrayList<>();
+
+            String latestVersion = root.optString("latest_version", "");
+            int versionCode = root.optInt("version_code", 0);
+            String releaseUrl = root.optString("release_url", "");
+
+            int currentVersionCode = 2;
+            try {
+                currentVersionCode = getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
+            } catch (Exception ignored) {}
+
+            // Check if there is a pending engine update
+            if (versionCode > currentVersionCode) {
+                RemoteNotification updateNotif = new RemoteNotification();
+                updateNotif.id = "update_v" + versionCode;
+                updateNotif.type = "update";
+                updateNotif.hasUpdate = true;
+                updateNotif.versionCode = versionCode;
+                updateNotif.latestVersion = latestVersion;
+                updateNotif.releaseUrl = releaseUrl;
+                updateNotif.title = "NUEVA VERSIÓN DETECTADA: v" + latestVersion;
+                updateNotif.date = "v" + latestVersion;
+                updateNotif.summary = "Nueva versión oficial disponible en GitHub.";
+                updateNotif.message = "Hay una nueva versión de Spartan CE lista para instalar en GitHub con mejoras de estabilidad y rendimiento.";
+                updateNotif.actionText = "Descargar en GitHub";
+                updateNotif.actionUrl = releaseUrl;
+                list.add(updateNotif);
+            }
+
+            // Parse "notifications" array
+            if (root.has("notifications")) {
+                JSONArray arr = root.getJSONArray("notifications");
+                for (int i = 0; i < arr.length(); i++) {
+                    JSONObject nObj = arr.getJSONObject(i);
+                    RemoteNotification n = parseSingleNotification(nObj);
+                    if (n != null && n.id != null && !n.id.isEmpty()) {
+                        list.add(n);
+                    }
+                }
+            } else if (root.has("notification")) {
+                JSONObject nObj = root.getJSONObject("notification");
+                RemoteNotification n = parseSingleNotification(nObj);
+                if (n != null && n.id != null && !n.id.isEmpty()) {
+                    list.add(n);
+                }
+            }
+
+            if (!list.isEmpty()) {
+                cachedNotifications.clear();
+                cachedNotifications.addAll(list);
+            }
+            updateBellBadgeUI();
+        } catch (Throwable ignored) {}
+    }
+
+    private RemoteNotification parseSingleNotification(JSONObject nObj) {
+        try {
+            RemoteNotification notif = new RemoteNotification();
+            notif.id = nObj.optString("id", "").trim();
+            notif.type = nObj.optString("type", "announcement");
+            notif.title = nObj.optString("title", "Aviso de Spartan CE");
+            notif.date = nObj.optString("date", "");
+            notif.summary = nObj.optString("summary", "");
+            notif.message = nObj.optString("message", "");
+
+            if (nObj.has("changelog")) {
+                JSONArray cArr = nObj.getJSONArray("changelog");
+                for (int i = 0; i < cArr.length(); i++) {
+                    notif.changelog.add(cArr.getString(i));
+                }
+            }
+
+            if (nObj.has("action_button")) {
+                JSONObject aObj = nObj.getJSONObject("action_button");
+                notif.actionText = aObj.optString("text", "Ver más");
+                notif.actionUrl = aObj.optString("url", "");
+            }
+            return notif;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private void checkAndSyncNotifications() {
+        new Thread(() -> {
+            try {
+                String updatesUrl = getUpdatesUrl(this);
+                if (updatesUrl == null || !updatesUrl.startsWith("http")) return;
+
+                URL url = new URL(updatesUrl);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(3500);
+                conn.setReadTimeout(3500);
+                conn.setRequestMethod("GET");
+                conn.connect();
+
+                if (conn.getResponseCode() == 200) {
+                    StringBuilder sb = new StringBuilder();
+                    try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                            new java.io.InputStreamReader(conn.getInputStream(), java.nio.charset.StandardCharsets.UTF_8))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            sb.append(line);
+                        }
+                    }
+                    parseNotificationsFromJson(sb.toString());
+                }
+                conn.disconnect();
+            } catch (Exception ignored) {
+                // Offline fallback - assets already loaded
+            }
+        }).start();
+    }
+
+    private void showNotificationsDialog() {
+        final Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+
+        LinearLayout rootCard = new LinearLayout(this);
+        rootCard.setOrientation(LinearLayout.VERTICAL);
+        rootCard.setPadding(dp(18), dp(16), dp(18), dp(16));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.argb(250, 8, 12, 18)); // Deep MCC obsidian slate
+        bg.setCornerRadius(dp(4));
+        bg.setStroke(dp(1), Color.argb(80, 56, 189, 248)); // Subtle tactical cyan stroke
+        rootCard.setBackground(bg);
+
+        // Header Row: Title & Subtitle + Pill + Close Button
+        LinearLayout headerRow = new LinearLayout(this);
+        headerRow.setOrientation(LinearLayout.HORIZONTAL);
+        headerRow.setGravity(Gravity.CENTER_VERTICAL);
+
+        LinearLayout titleCol = new LinearLayout(this);
+        titleCol.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams tLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+        headerRow.addView(titleCol, tLp);
+
+        TextView tvHeader = new TextView(this);
+        tvHeader.setText("CENTRO DE NOTIFICACIONES Y ACTUALIZACIONES");
+        tvHeader.setTextColor(palette.accent);
+        tvHeader.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        tvHeader.setTypeface(getTacticalTypeface(true));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            tvHeader.setLetterSpacing(0.08f);
+        }
+        titleCol.addView(tvHeader);
+
+        TextView tvSubHeader = new TextView(this);
+        tvSubHeader.setText("Sincronización remota Spartan CE • Halo MCC Protocol");
+        tvSubHeader.setTextColor(palette.textMuted);
+        tvSubHeader.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9.5f);
+        tvSubHeader.setTypeface(getTacticalTypeface(false));
+        titleCol.addView(tvSubHeader);
+
+        // Status pill
+        final int unreadCount = getUnreadNotificationsCount();
+        TextView tvPill = new TextView(this);
+        tvPill.setText(unreadCount > 0 ? "● " + unreadCount + " NUEVA(S)" : "✓ AL DÍA");
+        tvPill.setTextColor(unreadCount > 0 ? Color.rgb(245, 158, 11) : Color.rgb(52, 211, 153));
+        tvPill.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
+        tvPill.setTypeface(getTacticalTypeface(true));
+        tvPill.setPadding(dp(8), dp(3), dp(8), dp(3));
+        GradientDrawable pillBg = new GradientDrawable();
+        pillBg.setCornerRadius(dp(2));
+        pillBg.setColor(unreadCount > 0 ? Color.argb(40, 245, 158, 11) : Color.argb(35, 52, 211, 153));
+        pillBg.setStroke(dp(1), unreadCount > 0 ? Color.argb(90, 245, 158, 11) : Color.argb(80, 52, 211, 153));
+        tvPill.setBackground(pillBg);
+        LinearLayout.LayoutParams pillLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        pillLp.leftMargin = dp(8);
+        pillLp.rightMargin = dp(8);
+        headerRow.addView(tvPill, pillLp);
+
+        // Close '✕' button
+        Button btnCloseX = new Button(this);
+        btnCloseX.setText("✕");
+        btnCloseX.setTextColor(palette.textSecondary);
+        btnCloseX.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        btnCloseX.setBackground(createButtonDrawable(palette.btnSecondaryBg, Color.argb(180, 28, 40, 60), 2, palette.btnSecondaryBorder));
+        int closeSize = dp(28);
+        LinearLayout.LayoutParams closeLp = new LinearLayout.LayoutParams(closeSize, closeSize);
+        btnCloseX.setOnClickListener(v -> {
+            hapticFeedback(v);
+            dialog.dismiss();
+        });
+        headerRow.addView(btnCloseX, closeLp);
+
+        rootCard.addView(headerRow);
+
+        // Divider
+        View divider = new View(this);
+        divider.setBackgroundColor(Color.argb(45, 56, 189, 248));
+        LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
+        divLp.topMargin = dp(10);
+        divLp.bottomMargin = dp(10);
+        rootCard.addView(divider, divLp);
+
+        // Scrollable Body
+        ScrollView sv = new ScrollView(this);
+        configureTacticalScrollView(sv);
+        LinearLayout.LayoutParams svLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1.0f);
+        rootCard.addView(sv, svLp);
+
+        LinearLayout listLayout = new LinearLayout(this);
+        listLayout.setOrientation(LinearLayout.VERTICAL);
+        sv.addView(listLayout, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        List<RemoteNotification> unreadList = new ArrayList<>();
+        List<RemoteNotification> readList = new ArrayList<>();
+        synchronized (cachedNotifications) {
+            for (RemoteNotification n : cachedNotifications) {
+                if (n.id != null && !n.id.trim().isEmpty() && !isNoticeDismissed(n.id)) {
+                    unreadList.add(n);
+                } else {
+                    readList.add(n);
+                }
+            }
+        }
+
+        // Render Unread Notices
+        if (!unreadList.isEmpty()) {
+            TextView tvSecUnread = new TextView(this);
+            tvSecUnread.setText("AVISOS PENDIENTES (" + unreadList.size() + "):");
+            tvSecUnread.setTextColor(Color.rgb(245, 158, 11));
+            tvSecUnread.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
+            tvSecUnread.setTypeface(getTacticalTypeface(true));
+            tvSecUnread.setPadding(0, 0, 0, dp(6));
+            listLayout.addView(tvSecUnread);
+
+            for (RemoteNotification n : unreadList) {
+                listLayout.addView(createNotificationItemView(dialog, n, false));
+            }
+        }
+
+        // Render Read Notices / History
+        if (!readList.isEmpty()) {
+            TextView tvSecRead = new TextView(this);
+            tvSecRead.setText(unreadList.isEmpty() ? "HISTORIAL DE AVISOS LEÍDOS:" : "AVISOS ANTERIORES:");
+            tvSecRead.setTextColor(palette.textMuted);
+            tvSecRead.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f);
+            tvSecRead.setTypeface(getTacticalTypeface(true));
+            tvSecRead.setPadding(0, unreadList.isEmpty() ? 0 : dp(10), 0, dp(6));
+            listLayout.addView(tvSecRead);
+
+            for (RemoteNotification n : readList) {
+                listLayout.addView(createNotificationItemView(dialog, n, true));
+            }
+        }
+
+        if (unreadList.isEmpty() && readList.isEmpty()) {
+            TextView tvEmpty = new TextView(this);
+            tvEmpty.setText("✓ TODAS LAS NOTIFICACIONES AL DÍA\n\nNo hay avisos o actualizaciones registradas en el repositorio.");
+            tvEmpty.setTextColor(palette.textSecondary);
+            tvEmpty.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f);
+            tvEmpty.setTypeface(getTacticalTypeface(false));
+            tvEmpty.setPadding(0, dp(16), 0, dp(16));
+            listLayout.addView(tvEmpty);
+        }
+
+        // Bottom Action Bar
+        View btmDivider = new View(this);
+        btmDivider.setBackgroundColor(Color.argb(45, 56, 189, 248));
+        LinearLayout.LayoutParams bDivLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
+        bDivLp.topMargin = dp(10);
+        bDivLp.bottomMargin = dp(10);
+        rootCard.addView(btmDivider, bDivLp);
+
+        LinearLayout bottomBar = new LinearLayout(this);
+        bottomBar.setOrientation(LinearLayout.HORIZONTAL);
+        bottomBar.setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
+
+        if (!unreadList.isEmpty()) {
+            Button btnMarkAll = new Button(this);
+            btnMarkAll.setText("✓ LEER TODAS");
+            btnMarkAll.setTextColor(Color.rgb(6, 9, 14));
+            btnMarkAll.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
+            btnMarkAll.setTypeface(getTacticalTypeface(true));
+            btnMarkAll.setBackground(createGradientButton(palette.accent, palette.accentBg, 2));
+            btnMarkAll.setPadding(dp(12), dp(4), dp(12), dp(4));
+            LinearLayout.LayoutParams maLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(34));
+            maLp.rightMargin = dp(8);
+            btnMarkAll.setOnClickListener(v -> {
+                hapticFeedback(v);
+                markAllNoticesDismissed();
+                Toast.makeText(this, "Todas las notificaciones marcadas como leídas", Toast.LENGTH_SHORT).show();
+                dialog.dismiss();
+            });
+            bottomBar.addView(btnMarkAll, maLp);
+        }
+
+        Button btnSync = new Button(this);
+        btnSync.setText("🔄 REINTENTAR SYNC");
+        btnSync.setTextColor(palette.textSecondary);
+        btnSync.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
+        btnSync.setTypeface(getTacticalTypeface(true));
+        btnSync.setBackground(createButtonDrawable(palette.btnSecondaryBg, Color.argb(180, 28, 40, 60), 2, palette.btnSecondaryBorder));
+        btnSync.setPadding(dp(10), dp(4), dp(10), dp(4));
+        LinearLayout.LayoutParams syncLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(34));
+        syncLp.rightMargin = dp(8);
+        btnSync.setOnClickListener(v -> {
+            hapticFeedback(v);
+            Toast.makeText(this, "Consultando actualizaciones...", Toast.LENGTH_SHORT).show();
+            checkAndSyncNotifications();
+            dialog.dismiss();
+        });
+        bottomBar.addView(btnSync, syncLp);
+
+        Button btnClose = new Button(this);
+        btnClose.setText("CERRAR");
+        btnClose.setTextColor(palette.textPrimary);
+        btnClose.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
+        btnClose.setTypeface(getTacticalTypeface(true));
+        btnClose.setBackground(createButtonDrawable(palette.btnSecondaryBg, Color.argb(180, 28, 40, 60), 2, palette.btnSecondaryBorder));
+        btnClose.setPadding(dp(12), dp(4), dp(12), dp(4));
+        LinearLayout.LayoutParams cLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(34));
+        btnClose.setOnClickListener(v -> {
+            hapticFeedback(v);
+            dialog.dismiss();
+        });
+        bottomBar.addView(btnClose, cLp);
+
+        rootCard.addView(bottomBar);
+
+        dialog.setContentView(rootCard);
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            int dialogWidth = Math.min(dp(540), getResources().getDisplayMetrics().widthPixels - dp(40));
+            int dialogHeight = Math.min(dp(440), getResources().getDisplayMetrics().heightPixels - dp(32));
+            dialog.getWindow().setLayout(dialogWidth, dialogHeight);
+        }
+        dialog.show();
+    }
+
+    private View createNotificationItemView(Dialog dialog, RemoteNotification n, boolean isRead) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(12), dp(10), dp(12), dp(10));
+
+        GradientDrawable cBg = new GradientDrawable();
+        cBg.setCornerRadius(dp(3));
+        cBg.setColor(isRead ? Color.argb(60, 10, 16, 26) : Color.argb(120, 16, 26, 42));
+        cBg.setStroke(dp(1), isRead ? Color.argb(30, 56, 189, 248) : Color.argb(70, 56, 189, 248));
+        card.setBackground(cBg);
+
+        LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        cardLp.bottomMargin = dp(8);
+        card.setLayoutParams(cardLp);
+
+        // Header: Title + Status Pill
+        LinearLayout rowTop = new LinearLayout(this);
+        rowTop.setOrientation(LinearLayout.HORIZONTAL);
+        rowTop.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView tvTitle = new TextView(this);
+        tvTitle.setText(n.title.isEmpty() ? "Aviso de Spartan CE" : n.title);
+        tvTitle.setTextColor(isRead ? palette.textSecondary : palette.textPrimary);
+        tvTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        tvTitle.setTypeface(getTacticalTypeface(true));
+        LinearLayout.LayoutParams tLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+        rowTop.addView(tvTitle, tLp);
+
+        TextView tvTag = new TextView(this);
+        tvTag.setText(isRead ? "✓ LEÍDO" : "● NUEVA");
+        tvTag.setTextColor(isRead ? palette.textMuted : Color.rgb(245, 158, 11));
+        tvTag.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9.5f);
+        tvTag.setTypeface(getTacticalTypeface(true));
+        tvTag.setPadding(dp(6), dp(2), dp(6), dp(2));
+        GradientDrawable tagBg = new GradientDrawable();
+        tagBg.setCornerRadius(dp(2));
+        tagBg.setColor(isRead ? Color.argb(25, 255, 255, 255) : Color.argb(45, 245, 158, 11));
+        tvTag.setBackground(tagBg);
+        rowTop.addView(tvTag);
+        card.addView(rowTop);
+
+        // Metadata: ID & Date
+        TextView tvMeta = new TextView(this);
+        tvMeta.setText("ID: " + n.id + (n.date.isEmpty() ? "" : "  •  " + n.date));
+        tvMeta.setTextColor(isRead ? palette.textMuted : palette.accent);
+        tvMeta.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9.5f);
+        tvMeta.setTypeface(getTacticalTypeface(false));
+        tvMeta.setPadding(0, dp(2), 0, dp(6));
+        card.addView(tvMeta);
+
+        // Message body
+        if (!n.message.isEmpty()) {
+            TextView tvMsg = new TextView(this);
+            tvMsg.setText(n.message);
+            tvMsg.setTextColor(isRead ? palette.textMuted : palette.textSecondary);
+            tvMsg.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+            tvMsg.setTypeface(getTacticalTypeface(false));
+            tvMsg.setPadding(0, 0, 0, dp(6));
+            card.addView(tvMsg);
+        }
+
+        // Changelog bullets
+        if (!n.changelog.isEmpty()) {
+            for (String item : n.changelog) {
+                TextView tvItem = new TextView(this);
+                tvItem.setText("›  " + item);
+                tvItem.setTextColor(isRead ? palette.textMuted : palette.textPrimary);
+                tvItem.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
+                tvItem.setTypeface(getTacticalTypeface(false));
+                tvItem.setPadding(dp(4), dp(1), 0, dp(1));
+                card.addView(tvItem);
+            }
+        }
+
+        // Action Buttons Row
+        LinearLayout actionsRow = new LinearLayout(this);
+        actionsRow.setOrientation(LinearLayout.HORIZONTAL);
+        actionsRow.setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
+        actionsRow.setPadding(0, dp(8), 0, 0);
+
+        final String actUrl = !n.actionUrl.isEmpty() ? n.actionUrl : n.releaseUrl;
+        if (!actUrl.isEmpty()) {
+            Button btnAct = new Button(this);
+            btnAct.setText(n.actionText.isEmpty() ? "🌐  VER DETALLES" : "🌐  " + n.actionText.toUpperCase());
+            btnAct.setTextColor(Color.rgb(6, 9, 14));
+            btnAct.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
+            btnAct.setTypeface(getTacticalTypeface(true));
+            btnAct.setBackground(createGradientButton(palette.accent, palette.accentBg, 2));
+            btnAct.setPadding(dp(10), dp(2), dp(10), dp(2));
+            LinearLayout.LayoutParams actLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(30));
+            actLp.rightMargin = dp(8);
+            btnAct.setOnClickListener(v -> {
+                hapticFeedback(v);
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(actUrl)));
+            });
+            actionsRow.addView(btnAct, actLp);
+        }
+
+        if (!isRead) {
+            Button btnDismiss = new Button(this);
+            btnDismiss.setText("✓ MARCAR LEÍDA");
+            btnDismiss.setTextColor(palette.textPrimary);
+            btnDismiss.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
+            btnDismiss.setTypeface(getTacticalTypeface(true));
+            btnDismiss.setBackground(createButtonDrawable(palette.btnSecondaryBg, Color.argb(180, 28, 40, 60), 2, palette.btnSecondaryBorder));
+            btnDismiss.setPadding(dp(10), dp(2), dp(10), dp(2));
+            LinearLayout.LayoutParams disLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(30));
+            btnDismiss.setOnClickListener(v -> {
+                hapticFeedback(v);
+                markNoticeDismissed(n.id);
+                Toast.makeText(this, "Aviso marcado como leído", Toast.LENGTH_SHORT).show();
+                dialog.dismiss();
+                showNotificationsDialog(); // Re-render dialog with updated state
+            });
+            actionsRow.addView(btnDismiss, disLp);
+        }
+
+        card.addView(actionsRow);
+        return card;
     }
 
     private void passOnInvite(Intent intent) {
@@ -415,7 +989,7 @@ public class LauncherActivity extends Activity {
         LinearLayout branding = new LinearLayout(this);
         branding.setOrientation(LinearLayout.HORIZONTAL);
         branding.setGravity(Gravity.CENTER_VERTICAL);
-        headerRow.addView(branding, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        headerRow.addView(branding, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
 
         ImageView ivLogo = new ImageView(this);
         ivLogo.setImageResource(R.drawable.m6d_emblem);
@@ -439,7 +1013,7 @@ public class LauncherActivity extends Activity {
         tvTitle.setText("SPARTAN CE");
         tvTitle.setTextColor(palette.textPrimary);
         tvTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 19);
-        tvTitle.setTypeface(Typeface.create("sans-serif-condensed", Typeface.BOLD));
+        tvTitle.setTypeface(getTacticalTypeface(true));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             tvTitle.setLetterSpacing(0.08f);
         }
@@ -449,11 +1023,89 @@ public class LauncherActivity extends Activity {
         tvSubtitle.setText(MotdManager.getCurrentMessage(this));
         tvSubtitle.setTextColor(palette.accent);
         tvSubtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f);
-        tvSubtitle.setTypeface(Typeface.create("sans-serif-condensed", Typeface.NORMAL));
+        tvSubtitle.setTypeface(getTacticalTypeface(false));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             tvSubtitle.setLetterSpacing(0.06f);
         }
         titleCol.addView(tvSubtitle);
+
+        // Right Header Controls: Notification Bell + Spartan-117 Profile Badge
+        LinearLayout rightHeaderControls = new LinearLayout(this);
+        rightHeaderControls.setOrientation(LinearLayout.HORIZONTAL);
+        rightHeaderControls.setGravity(Gravity.CENTER_VERTICAL);
+        headerRow.addView(rightHeaderControls, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        // 1. Notification Bell
+        FrameLayout bellFrame = new FrameLayout(this);
+        LinearLayout.LayoutParams bellLp = new LinearLayout.LayoutParams(dp(36), dp(32));
+        bellLp.rightMargin = dp(8);
+        bellFrame.setLayoutParams(bellLp);
+
+        Button btnBell = new Button(this);
+        btnBell.setText("🔔");
+        btnBell.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        btnBell.setBackground(createButtonDrawable(palette.btnSecondaryBg, Color.argb(200, 28, 40, 60), 2, palette.btnSecondaryBorder));
+        btnBell.setOnClickListener(v -> {
+            hapticFeedback(v);
+            showNotificationsDialog();
+        });
+        bellFrame.addView(btnBell, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        // Amber Alert Dot for unread announcements / updates
+        bellBadgeDot = new View(this);
+        GradientDrawable dotBg = new GradientDrawable();
+        dotBg.setShape(GradientDrawable.OVAL);
+        dotBg.setColor(Color.rgb(245, 158, 11)); // Amber alert
+        dotBg.setStroke(dp(1), Color.rgb(6, 9, 14));
+        bellBadgeDot.setBackground(dotBg);
+        int dotSize = dp(8.5f);
+        FrameLayout.LayoutParams dotLp = new FrameLayout.LayoutParams(dotSize, dotSize);
+        dotLp.gravity = Gravity.TOP | Gravity.END;
+        dotLp.topMargin = dp(3);
+        dotLp.rightMargin = dp(4);
+        bellBadgeDot.setLayoutParams(dotLp);
+        bellBadgeDot.setVisibility(View.GONE);
+        bellFrame.addView(bellBadgeDot);
+
+        rightHeaderControls.addView(bellFrame);
+
+        // 2. Spartan-117 Profile Badge
+        LinearLayout spartanBadge = new LinearLayout(this);
+        spartanBadge.setOrientation(LinearLayout.HORIZONTAL);
+        spartanBadge.setGravity(Gravity.CENTER_VERTICAL);
+        spartanBadge.setBackground(createButtonDrawable(palette.btnSecondaryBg, Color.argb(200, 28, 40, 60), 2, palette.btnSecondaryBorder));
+        spartanBadge.setPadding(dp(10), dp(4), dp(10), dp(4));
+        LinearLayout.LayoutParams sbLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, dp(32));
+        spartanBadge.setLayoutParams(sbLp);
+
+        View statusDot = new View(this);
+        GradientDrawable statusDotBg = new GradientDrawable();
+        statusDotBg.setShape(GradientDrawable.OVAL);
+        statusDotBg.setColor(Color.rgb(52, 211, 153)); // Tactical green online
+        statusDot.setBackground(statusDotBg);
+        int sDotSize = dp(6);
+        LinearLayout.LayoutParams sDotLp = new LinearLayout.LayoutParams(sDotSize, sDotSize);
+        sDotLp.rightMargin = dp(6);
+        spartanBadge.addView(statusDot, sDotLp);
+
+        TextView tvSpartan = new TextView(this);
+        tvSpartan.setText("SPARTAN-117");
+        tvSpartan.setTextColor(palette.textPrimary);
+        tvSpartan.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f);
+        tvSpartan.setTypeface(getTacticalTypeface(true));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            tvSpartan.setLetterSpacing(0.06f);
+        }
+        spartanBadge.addView(tvSpartan);
+
+        spartanBadge.setOnClickListener(v -> {
+            hapticFeedback(v);
+            selectTab(5, true); // Navigate to Información y Estado
+        });
+        rightHeaderControls.addView(spartanBadge);
 
         // --- CENTER SPLIT: LEFT MENU (240dp) + VERTICAL DIVIDER + RIGHT CONTENT PANEL (100% VERTICAL) ---
         LinearLayout bodyRow = new LinearLayout(this);
@@ -1524,6 +2176,39 @@ public class LauncherActivity extends Activity {
         actionsRow.addView(btnReset, resetLp);
 
         page.addView(actionsRow);
+
+        // Card 2: Gestión de Avisos y Notificaciones
+        LinearLayout cardNotif = createInfoCard("GESTIÓN DE AVISOS Y NOTIFICACIONES");
+        cardNotif.setPadding(dp(14), dp(12), dp(14), dp(12));
+
+        TextView tvNotifDesc = new TextView(this);
+        Set<String> dismissedSet = hubPrefs.getStringSet(PREF_DISMISSED_NOTICES, null);
+        int dCount = dismissedSet != null ? dismissedSet.size() : 0;
+        tvNotifDesc.setText("Avisos marcados como leídos en este dispositivo: " + dCount + "\nLos avisos con ID guardado no volverán a mostrarse ni activarán alertas al abrir el juego.");
+        tvNotifDesc.setTextColor(palette.textSecondary);
+        tvNotifDesc.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+        tvNotifDesc.setTypeface(getTacticalTypeface(false));
+        tvNotifDesc.setPadding(0, dp(4), 0, dp(10));
+        cardNotif.addView(tvNotifDesc);
+
+        Button btnClearNotices = new Button(this);
+        btnClearNotices.setText("🗑  RESTABLECER HISTORIAL DE AVISOS LEÍDOS");
+        btnClearNotices.setTextColor(palette.textPrimary);
+        btnClearNotices.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+        btnClearNotices.setTypeface(getTacticalTypeface(true));
+        btnClearNotices.setBackground(createButtonDrawable(palette.btnSecondaryBg, Color.argb(200, 28, 40, 60), 2, palette.btnSecondaryBorder));
+        btnClearNotices.setPadding(dp(12), dp(4), dp(12), dp(4));
+        LinearLayout.LayoutParams cnLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(40));
+        btnClearNotices.setOnClickListener(v -> {
+            hapticFeedback(v);
+            hubPrefs.edit().remove(PREF_DISMISSED_NOTICES).commit();
+            updateBellBadgeUI();
+            Toast.makeText(this, "✓ Historial de avisos leídos restablecido", Toast.LENGTH_SHORT).show();
+            selectTab(4, false); // Reload tab to refresh count
+        });
+        cardNotif.addView(btnClearNotices, cnLp);
+
+        page.addView(cardNotif);
 
         return sv;
     }
